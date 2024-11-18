@@ -1,0 +1,16 @@
+2024-11-18 17:21:54 [main] INFO  app.ApplicationMain - Starting ApplicationMain using Java 11.0.20.1 on Anshs-MacBook-Pro.local with PID 79339 (/Users/anshmehta/Desktop/cs7610-distributed-systems/ripplemq/target/classes started by anshmehta in /Users/anshmehta/Desktop/cs7610-distributed-systems/ripplemq)
+2024-11-18 17:21:54 [main] INFO  app.ApplicationMain - No active profile set, falling back to 1 default profile: "default"
+2024-11-18 17:21:55 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port(s): 7673 (http)
+2024-11-18 17:21:55 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-7673"]
+2024-11-18 17:21:55 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2024-11-18 17:21:55 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/9.0.60]
+2024-11-18 17:21:55 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2024-11-18 17:21:55 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 303 ms
+2024-11-18 17:21:55 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-7673"]
+2024-11-18 17:21:55 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port(s): 7673 (http) with context path ''
+2024-11-18 17:21:55 [main] INFO  app.ApplicationMain - Started ApplicationMain in 0.536 seconds (JVM running for 0.77)
+2024-11-18 17:22:03 [http-nio-7673-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2024-11-18 17:22:03 [http-nio-7673-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2024-11-18 17:22:03 [http-nio-7673-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 0 ms
+2024-11-18 17:22:03 [http-nio-7673-exec-1] INFO  app.controller.HelloController - Task performed successfully.
+2024-11-18 17:22:12 [http-nio-7673-exec-4] INFO  app.controller.HelloController - Task performed successfully.
