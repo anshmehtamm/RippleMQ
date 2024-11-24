@@ -5,6 +5,7 @@ import org.yaml.snakeyaml.constructor.Constructor;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
@@ -12,6 +13,9 @@ import java.util.List;
 public class ClusterConfig {
   private List<Broker> brokers;
   private List<Topic> topics;
+  private int port;
+
+  private Broker self;
 
   public ClusterConfig() {}
 
@@ -22,10 +26,33 @@ public class ClusterConfig {
 
   public void setBrokers(List<Broker> brokers) {
     this.brokers = brokers;
+    // identify self
+    for (Broker broker : brokers) {
+      // get hostname of the current machine
+      String hostname = new InetSocketAddress(0).getAddress().getHostAddress();
+      System.out.println("Hostname: " + hostname);
+      if (broker.getHost().equals(hostname)) {
+        self = broker;
+        //this.brokers.remove(broker);
+        break;
+      }
+    }
   }
 
   public List<Topic> getTopics() {
     return topics;
+  }
+
+  public Broker getSelf() {
+    return self;
+  }
+
+  public int getPort() {
+    return port;
+  }
+
+  public void setPort(int port) {
+    this.port = port;
   }
 
   public void setTopics(List<Topic> topics) {
