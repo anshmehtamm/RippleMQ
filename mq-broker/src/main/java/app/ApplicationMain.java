@@ -20,15 +20,21 @@ import java.util.UUID;
 
 public class ApplicationMain {
   public static void main(String[] args) throws IOException {
+
+    int id = Integer.parseInt(args[1]);
+
     ClusterConfig config = ClusterConfig.loadConfig("mq-broker/config/cluster_config.yaml");
 
     RaftProperties properties = new RaftProperties();
     RaftServerConfigKeys.setStorageDir(properties, Collections.singletonList(new File("mq-broker/data")));
-
-
+    System.out.println("Starting broker with id " + id);
+    Broker self = config.getSelf(id);
+    if (self == null) {
+      throw new IllegalArgumentException("Broker with id " + id + " not found in the configuration");
+    }
     RaftPeer peer = RaftPeer.newBuilder()
-      .setId(""+config.getSelf().getId())
-      .setAddress(new InetSocketAddress(config.getSelf().getHost(), config.getPort()))
+      .setId(""+self.getId())
+      .setAddress(new InetSocketAddress(self.getHost(), config.getPort()))
       .build();
 
     RaftPeer[] others = config.getBrokers().stream()

@@ -15,7 +15,7 @@ public class ClusterConfig {
   private List<Topic> topics;
   private int port;
 
-  private Broker self;
+
 
   public ClusterConfig() {}
 
@@ -26,25 +26,19 @@ public class ClusterConfig {
 
   public void setBrokers(List<Broker> brokers) {
     this.brokers = brokers;
-    // identify self
-    for (Broker broker : brokers) {
-      // get hostname of the current machine
-      String hostname = new InetSocketAddress(0).getAddress().getHostAddress();
-      System.out.println("Hostname: " + hostname);
-      if (broker.getHost().equals(hostname)) {
-        self = broker;
-        //this.brokers.remove(broker);
-        break;
-      }
-    }
   }
 
   public List<Topic> getTopics() {
     return topics;
   }
 
-  public Broker getSelf() {
-    return self;
+  public Broker getSelf(int id) {
+    for (Broker broker : brokers) {
+      if (broker.getId() == id) {
+        return broker;
+      }
+    }
+    return null;
   }
 
   public int getPort() {

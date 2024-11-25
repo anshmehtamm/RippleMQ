@@ -1,0 +1,21 @@
+services:
+  broker1:
+    image: mq-broker
+    networks:
+      - mynetwork
+    hostname: "broker1"
+    container_name: "broker1"
+    command: ["-id", "1"]
+
+  broker2:
+    image: mq-broker
+    networks:
+      - mynetwork
+    hostname: "broker2"
+    container_name: "broker2"
+    command: ["-id", "2"]
+
+
+networks:
+  # The presence of these objects is sufficient to define them
+  mynetwork: {}

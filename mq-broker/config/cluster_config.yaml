@@ -1,8 +1,8 @@
 brokers:
-  - id: 0
-    host: '0.0.0.0'
   - id: 1
     host: 'broker1'
+  - id: 2
+    host: 'broker2'
 port: 9092
 topics:
   - name: 'topic1'
