@@ -1,9 +1,9 @@
 brokers:
-  - id: 0
-    host: 'broker0'
   - id: 1
     host: 'broker1'
-
+  - id: 2
+    host: 'broker2'
+port: 9092
 topics:
   - name: 'topic1'
     partitions: 3
