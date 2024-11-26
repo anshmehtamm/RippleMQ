@@ -1,2 +1,5 @@
-app/Test.class
+app/Broker.class
+app/ClusterConfig.class
 app/ApplicationMain.class
+app/Topic.class
+app/MetadataStateMachine.class
