@@ -15,6 +15,30 @@ services:
     container_name: "broker2"
     command: ["-id", "2"]
 
+  broker3:
+    image: mq-broker
+    networks:
+      - mynetwork
+    hostname: "broker3"
+    container_name: "broker3"
+    command: [ "-id", "3" ]
+
+  broker4:
+    image: mq-broker
+    networks:
+      - mynetwork
+    hostname: "broker4"
+    container_name: "broker4"
+    command: [ "-id", "4" ]
+
+  broker5:
+    image: mq-broker
+    networks:
+      - mynetwork
+    hostname: "broker5"
+    container_name: "broker5"
+    command: [ "-id", "5" ]
+
 
 networks:
   # The presence of these objects is sufficient to define them

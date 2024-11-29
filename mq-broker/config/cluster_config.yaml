@@ -1,13 +1,23 @@
 brokers:
   - id: 1
-    host: 'broker1'
+    hostname: 'broker1'
+    port: 9092
   - id: 2
-    host: 'broker2'
-port: 9092
+    hostname: 'broker2'
+    port: 9092
+  - id: 3
+    hostname: 'broker3'
+    port: 9092
+  - id: 4
+    hostname: 'broker4'
+    port: 9092
+  - id: 5
+    hostname: 'broker5'
+    port: 9092
 topics:
   - name: 'topic1'
     partitions: 3
-    replication_factor: 2
+    replicationFactor: 2
   - name: 'topic2'
     partitions: 5
-    replication_factor: 2
+    replicationFactor: 2

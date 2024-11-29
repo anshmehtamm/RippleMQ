@@ -1,62 +1,64 @@
 package app;
 
-import org.apache.ratis.conf.RaftProperties;
-import org.apache.ratis.grpc.GrpcConfigKeys;
-import org.apache.ratis.protocol.RaftGroup;
-import org.apache.ratis.protocol.RaftGroupId;
-import org.apache.ratis.protocol.RaftPeer;
-import org.apache.ratis.server.RaftServer;
-import org.apache.ratis.server.RaftServerConfigKeys;
-import org.apache.ratis.util.NetUtils;
-
-import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+
+import broker.BrokerServer;
+import config.ClusterConfigManager;
 
 public class ApplicationMain {
+
   public static void main(String[] args) throws IOException {
+    /**
+     * Accepted arguments
+     *
+     * - id: The id of the broker
+     * - config: The path to the cluster configuration file
+     * - host: The hostname of the broker
+     * - port: The port of the broker
+     * - debug level: The debug level of the broker
+     *
+     * Default values:
+     * - id: identified from the configuration file
+     * - config: mq-broker/config/cluster_config.yaml
+     * - host: identified from the configuration file
+     * - port: identified from the configuration file
+     */
 
-    int id = Integer.parseInt(args[1]);
+    setSystemProperties();
 
-    ClusterConfig config = ClusterConfig.loadConfig("mq-broker/config/cluster_config.yaml");
-
-    RaftProperties properties = new RaftProperties();
-    RaftServerConfigKeys.setStorageDir(properties, Collections.singletonList(new File("mq-broker/data")));
-    System.out.println("Starting broker with id " + id);
-    Broker self = config.getSelf(id);
-    if (self == null) {
-      throw new IllegalArgumentException("Broker with id " + id + " not found in the configuration");
+    if (args.length < 2) {
+      System.err.println("Usage: java -jar broker-server.jar <arg1> <brokerId> [<arg3> ...]");
+      System.exit(1);
     }
-    RaftPeer peer = RaftPeer.newBuilder()
-      .setId(""+self.getId())
-      .setAddress(new InetSocketAddress(self.getHost(), config.getPort()))
-      .build();
 
-    RaftPeer[] others = config.getBrokers().stream()
-      .map(broker -> RaftPeer.newBuilder()
-        .setId(""+broker.getId())
-        .setAddress(new InetSocketAddress(broker.getHost(), config.getPort()))
-        .build())
-      .toArray(RaftPeer[]::new);
+    String brokerId = args[1];
 
-    List<RaftPeer> peers = new ArrayList<>();
-    peers.addAll(Arrays.asList(others));
+    // Load cluster configuration
+    ClusterConfigManager clusterConfigManager = ClusterConfigManager.getInstance();
+    clusterConfigManager.loadClusterConfig();
 
-    RaftGroup group = RaftGroup.valueOf(RaftGroupId.valueOf(UUID.fromString("02511d47-d67c-49a3-9011-abb3109a44c1")), peers);
-    final int port = NetUtils.createSocketAddr(peer.getAddress()).getPort();
-    GrpcConfigKeys.Server.setPort(properties, port);
+    // Instantiate BrokerServer
+    BrokerServer brokerServer = new BrokerServer(clusterConfigManager.getClusterConfig(), brokerId);
 
-    RaftServer server = RaftServer.newBuilder().setServerId(peer.getId())
-      .setStateMachine(new MetadataStateMachine())
-      .setGroup(group)
-      .setProperties(properties)
-      .build();
+    // Start BrokerServer
+    brokerServer.start();
 
-    server.start();
+    // Add shutdown hook to gracefully stop the server
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      try {
+        brokerServer.stop();
+        System.out.println("Broker server stopped.");
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }));
+
+    System.out.println("Broker server started successfully.");
+  }
+
+  private static void setSystemProperties() {
+    // Implement any required system property settings here
+    // Example:
+    // System.setProperty("logback.configurationFile", "path/to/logback.xml");
   }
 }
