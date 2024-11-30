@@ -23,11 +23,10 @@ public class ApplicationMain {
      * - host: identified from the configuration file
      * - port: identified from the configuration file
      */
-
     setSystemProperties();
 
-    if (args.length < 2) {
-      System.err.println("Usage: java -jar broker-server.jar <arg1> <brokerId> [<arg3> ...]");
+    if (args.length < 1) {
+      System.err.println("Usage: java -jar broker-server.jar <brokerId>");
       System.exit(1);
     }
 

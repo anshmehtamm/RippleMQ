@@ -3,25 +3,25 @@ package broker;
 import java.io.IOException;
 
 import config.ClusterConfig;
-import config.ClusterConfigManager;
-import topics.raft.topics.TopicsRaftServer;
+import metadata.raft.TopicsRaftServer;
+
 
 /**
- * BrokerClusterManager manages the Raft server for a broker.
+ * BrokerMetadataManager manages the Raft server for a broker.
  */
-public class BrokerClusterManager {
+public class BrokerMetadataManager {
 
   private TopicsRaftServer raftServer;
 
   /**
    * Constructor that initializes the Raft server.
    *
-   * @param brokerId The ID of this broker
+   * @param clusterConfig The cluster configuration
+   * @param brokerId      The ID of this broker
    * @throws IOException If an I/O error occurs during Raft server setup
    */
-  public BrokerClusterManager(String brokerId) throws IOException {
-    ClusterConfig config = ClusterConfigManager.getInstance().getClusterConfig();
-    raftServer = new TopicsRaftServer(config.getBrokers(), brokerId);
+  public BrokerMetadataManager(ClusterConfig clusterConfig, String brokerId) throws IOException {
+    raftServer = new TopicsRaftServer(clusterConfig, brokerId);
   }
 
   /**

@@ -11,7 +11,7 @@ import config.ClusterConfig;
 public class BrokerServer {
 
   private final ClusterConfig clusterConfig;
-  private final BrokerClusterManager clusterManager;
+  private final BrokerMetadataManager clusterManager;
 
   /**
    * Constructor that initializes the BrokerServer.
@@ -22,7 +22,7 @@ public class BrokerServer {
    */
   public BrokerServer(ClusterConfig clusterConfig, String brokerId) throws IOException {
     this.clusterConfig = clusterConfig;
-    this.clusterManager = new BrokerClusterManager(brokerId);
+    this.clusterManager = new BrokerMetadataManager(clusterConfig, brokerId);
   }
 
   /**
@@ -34,11 +34,6 @@ public class BrokerServer {
     // Start the Raft server
     clusterManager.start();
 
-    // TODO: Initialize other components such as partition manager, producer/consumer handlers
-    // Example:
-    // PartitionManager partitionManager = new PartitionManager(clusterManager.getRaftServer());
-    // partitionManager.initialize();
-
     System.out.println("BrokerServer started successfully.");
   }
 
@@ -46,10 +41,6 @@ public class BrokerServer {
    * Stops the BrokerServer gracefully.
    */
   public void stop() {
-    // TODO: Shutdown other components gracefully
-    // Example:
-    // partitionManager.shutdown();
-
     // Shutdown the Raft server
     clusterManager.stop();
 

@@ -1,9 +1,13 @@
-package topics;
+package partition;
 
 import java.io.Serializable;
+import java.util.List;
+
+import partition.PartitionAssignment;
 
 /**
- * Topic represents an individual topic with its name, number of partitions, and replication factor.
+ * Topic represents an individual topic with its name, number of partitions, replication factor,
+ * and partition assignments.
  */
 public class Topic implements Serializable {
 
@@ -12,20 +16,13 @@ public class Topic implements Serializable {
   private String name;
   private int partitions;
   private int replicationFactor;
+  private List<PartitionAssignment> partitionAssignments;
 
-  /**
-   * Default constructor.
-   */
+  // Constructors
+
   public Topic() {
   }
 
-  /**
-   * Constructor with parameters.
-   *
-   * @param name              The name of the topic
-   * @param partitions        The number of partitions for the topic
-   * @param replicationFactor The replication factor for the topic
-   */
   public Topic(String name, int partitions, int replicationFactor) {
     this.name = name;
     this.partitions = partitions;
@@ -58,9 +55,18 @@ public class Topic implements Serializable {
     this.replicationFactor = replicationFactor;
   }
 
+  public List<PartitionAssignment> getPartitionAssignments() {
+    return partitionAssignments;
+  }
+
+  public void setPartitionAssignments(List<PartitionAssignment> partitionAssignments) {
+    this.partitionAssignments = partitionAssignments;
+  }
+
   @Override
   public String toString() {
     return "Topic{name='" + name + "', partitions=" + partitions +
-            ", replicationFactor=" + replicationFactor + "}";
+            ", replicationFactor=" + replicationFactor +
+            ", partitionAssignments=" + partitionAssignments + "}";
   }
 }

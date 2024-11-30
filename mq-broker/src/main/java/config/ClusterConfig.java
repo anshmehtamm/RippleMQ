@@ -3,8 +3,7 @@ package config;
 import java.io.Serializable;
 import java.util.List;
 
-import broker.BrokerInfo;
-import topics.Topic;
+import partition.Topic;
 
 /**
  * ClusterConfig holds the configuration of the cluster, including brokers and topics.
@@ -13,23 +12,17 @@ public class ClusterConfig implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
-  private List<BrokerInfo> brokers;
+  private List<BrokerConfig> brokers;
   private List<Topic> topics;
   private String configPath; // Path to the configuration file (optional)
 
-  /**
-   * Default constructor.
-   */
-  public ClusterConfig() {
-  }
-
   // Getters and Setters
 
-  public List<BrokerInfo> getBrokers() {
+  public List<BrokerConfig> getBrokers() {
     return brokers;
   }
 
-  public void setBrokers(List<BrokerInfo> brokers) {
+  public void setBrokers(List<BrokerConfig> brokers) {
     this.brokers = brokers;
   }
 
@@ -50,13 +43,13 @@ public class ClusterConfig implements Serializable {
   }
 
   /**
-   * Retrieves the BrokerInfo for the given broker ID.
+   * Retrieves the BrokerConfig for the given broker ID.
    *
    * @param id The broker ID
-   * @return The corresponding BrokerInfo, or null if not found
+   * @return The corresponding BrokerConfig, or null if not found
    */
-  public BrokerInfo getSelf(String id) {
-    for (BrokerInfo broker : brokers) {
+  public BrokerConfig getBrokerConfig(String id) {
+    for (BrokerConfig broker : brokers) {
       if (broker.getId().equals(id)) {
         return broker;
       }
@@ -67,5 +60,59 @@ public class ClusterConfig implements Serializable {
   @Override
   public String toString() {
     return "ClusterConfig{brokers=" + brokers + ", topics=" + topics + "}";
+  }
+
+  /**
+   * BrokerConfig represents the configuration information of a broker.
+   */
+  public static class BrokerConfig implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    private String id;
+    private String hostname;
+    private int port;
+
+    // Constructors
+
+    public BrokerConfig() {
+    }
+
+    public BrokerConfig(String id, String hostname, int port) {
+      this.id = id;
+      this.hostname = hostname;
+      this.port = port;
+    }
+
+    // Getters and Setters
+
+    public String getId() {
+      return id;
+    }
+
+    public String getHostname() {
+      return hostname;
+    }
+
+    public int getPort() {
+      return port;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public void setHostname(String hostname) {
+      this.hostname = hostname;
+    }
+
+    public void setPort(int port) {
+      this.port = port;
+    }
+
+    @Override
+    public String toString() {
+      return id + "@" + hostname + ":" + port;
+    }
   }
 }
