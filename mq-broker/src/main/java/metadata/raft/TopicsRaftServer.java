@@ -1,27 +1,28 @@
-package topics.raft.topics;
+package metadata.raft;
 
 import com.alipay.sofa.jraft.CliService;
 import com.alipay.sofa.jraft.Node;
 import com.alipay.sofa.jraft.RaftGroupService;
 import com.alipay.sofa.jraft.RaftServiceFactory;
+import com.alipay.sofa.jraft.conf.Configuration;
+import com.alipay.sofa.jraft.entity.PeerId;
+import com.alipay.sofa.jraft.entity.Task;
 import com.alipay.sofa.jraft.option.CliOptions;
 import com.alipay.sofa.jraft.option.NodeOptions;
 import com.alipay.sofa.jraft.rpc.RaftRpcServerFactory;
 import com.alipay.sofa.jraft.rpc.RpcServer;
-import com.alipay.sofa.jraft.entity.PeerId;
-import com.alipay.sofa.jraft.conf.Configuration;
 import org.apache.commons.io.FileUtils;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.util.*;
 
-import broker.BrokerInfo;
-import topics.PartitionManager;
-import topics.raft.topics.request.TopicsRequestProcessor;
+import config.ClusterConfig;
+import partition.PartitionManager;
+import partition.Topic;
+import metadata.raft.request.TopicsClosure;
+import metadata.raft.request.TopicsRequest;
+import metadata.raft.request.TopicsRequestProcessor;
 
 /**
  * TopicsRaftServer sets up and manages the Raft server,
@@ -39,21 +40,22 @@ public class TopicsRaftServer {
   private static final String GROUP_ID = "topics_cluster";
   private static final String STORAGE_DIR = "/tmp/raft/topics";
 
-  // Scheduled executor for membership monitoring
-  private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-  private List<PeerId> previousMembers;
+  private PeerId selfPeerId;
   private Configuration initialConf;
+  private List<PeerId> peers;
+  private Map<String, PeerId> brokerIdToPeerId = new HashMap<>();
 
   /**
    * Constructor that initializes the PartitionManager and sets up Raft.
    *
-   * @param peers     List of all brokers in the cluster
-   * @param brokerId The ID of this broker
+   * @param clusterConfig The cluster configuration
+   * @param brokerId      The ID of this broker
    * @throws IOException If an I/O error occurs during setup
    */
-  public TopicsRaftServer(List<BrokerInfo> peers, String brokerId) throws IOException {
+  public TopicsRaftServer(ClusterConfig clusterConfig, String brokerId) throws IOException {
     this.partitionManager = new PartitionManager();
-    setupRaft(peers, brokerId);
+    this.partitionManager.setTopicsRaftServer(this);
+    setupRaft(clusterConfig, brokerId);
   }
 
   /**
@@ -63,33 +65,22 @@ public class TopicsRaftServer {
    */
   public void start() throws IOException {
     this.node = this.raftGroupService.start();
-    // Notify PartitionManager about the initial leader
-    PeerId leader = this.node.getLeaderId();
-    if (leader != null) {
-      partitionManager.handleLeaderChange(leader);
-    } else {
-      partitionManager.handleLeaderChange(null);
-    }
-
     // Start monitoring membership changes
     startMembershipMonitor();
   }
 
-  private void setupRaft(List<BrokerInfo> peers, String brokerId) throws IOException {
+  private void setupRaft(ClusterConfig clusterConfig, String brokerId) throws IOException {
     // Ensure storage directories exist
     FileUtils.forceMkdir(new File(STORAGE_DIR));
 
     // Parse self PeerId
-    BrokerInfo selfBroker = getSelfBroker(peers, brokerId);
+    ClusterConfig.BrokerConfig selfBroker = clusterConfig.getBrokerConfig(brokerId);
     if (selfBroker == null) {
       throw new IllegalArgumentException("Broker with ID " + brokerId + " not found in the cluster configuration.");
     }
 
-    PeerId selfPeerId = new PeerId();
-    boolean parsed = selfPeerId.parse(selfBroker.getHostname() + ":" + selfBroker.getPort());
-    if (!parsed) {
-      throw new IllegalArgumentException("Failed to parse PeerId for self: " + selfBroker.getHostname() + ":" + selfBroker.getPort());
-    }
+    selfPeerId = new PeerId(selfBroker.getHostname(), selfBroker.getPort());
+    System.out.println("Self PeerId: " + selfPeerId);
 
     // Create and configure RPC server
     final RpcServer rpcServer = RaftRpcServerFactory.createRaftRpcServer(selfPeerId.getEndpoint());
@@ -106,13 +97,17 @@ public class TopicsRaftServer {
 
     // Build initial cluster configuration
     StringBuilder peerString = new StringBuilder();
-    for (BrokerInfo peer : peers) {
-      peerString.append(peer.getHostname()).append(":").append(peer.getPort()).append(",");
+    this.peers = new ArrayList<>();
+    for (ClusterConfig.BrokerConfig broker : clusterConfig.getBrokers()) {
+      PeerId peerId = new PeerId(broker.getHostname(), broker.getPort());
+      peers.add(peerId);
+      brokerIdToPeerId.put(broker.getId(), peerId);
+      peerString.append(peerId.toString()).append(",");
     }
     if (peerString.length() > 0) {
       peerString.setLength(peerString.length() - 1); // Remove trailing comma
     }
-    Configuration initialConf = new Configuration();
+    initialConf = new Configuration();
     if (!initialConf.parse(peerString.toString())) {
       throw new IllegalArgumentException("Failed to parse initial cluster configuration.");
     }
@@ -126,86 +121,73 @@ public class TopicsRaftServer {
     // Initialize RaftGroupService
     this.raftGroupService = new RaftGroupService(GROUP_ID, selfPeerId, nodeOptions, rpcServer);
     this.cliService = RaftServiceFactory.createAndInitCliService(new CliOptions());
-    this.initialConf = initialConf;
-
   }
 
-  /**
-   * Starts a scheduled task to monitor membership changes.
-   */
-  private void startMembershipMonitor() {
-    scheduler.scheduleAtFixedRate(() -> {
-      try {
-        List<PeerId> currentMembers = getAliveNodes();
-        if (!currentMembers.equals(previousMembers)) {
-          previousMembers = currentMembers;
-          partitionManager.handleMembershipChange(currentMembers);
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }, 10, 10, TimeUnit.SECONDS); // Check every 10 seconds
+  public PeerId getSelfPeerId() {
+    return selfPeerId;
   }
 
-  /**
-   * Retrieves the list of currently alive nodes in the cluster.
-   *
-   * @return List of PeerIds representing alive nodes
-   */
-  private List<PeerId> getAliveNodes() {
+  public List<PeerId> getCurrentPeers() {
     return cliService.getAlivePeers(GROUP_ID, initialConf);
   }
 
-  /**
-   * Retrieves the BrokerInfo for the given broker ID.
-   *
-   * @param brokers  List of all brokers
-   * @param brokerId The ID of the broker to find
-   * @return The corresponding BrokerInfo, or null if not found
-   */
-  private BrokerInfo getSelfBroker(List<BrokerInfo> brokers, String brokerId) {
-    for (BrokerInfo broker : brokers) {
-      if (broker.getId().equals(brokerId)) {
-        return broker;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Retrieves the Raft node.
-   *
-   * @return Raft Node
-   */
   public Node getNode() {
     return node;
   }
 
-  /**
-   * Retrieves the state machine.
-   *
-   * @return TopicsStateMachine
-   */
   public TopicsStateMachine getStateMachine() {
     return stateMachine;
   }
 
-  /**
-   * Retrieves the Raft group service.
-   *
-   * @return RaftGroupService
-   */
   public RaftGroupService getRaftGroupService() {
     return raftGroupService;
   }
 
-  /**
-   * Retrieves the PartitionManager.
-   *
-   * @return PartitionManager
-   */
   public PartitionManager getPartitionManager() {
     return partitionManager;
+  }
+
+  /**
+   * Updates the topics via Raft.
+   *
+   * @param updatedTopics The updated list of topics
+   */
+  public void updateTopics(List<Topic> updatedTopics) {
+    for (Topic topic: updatedTopics){
+      System.out.println("Updated topic: " + topic.toString());
+    }
+    // Create a TopicsRequest with the updated topics
+    TopicsRequest request = new TopicsRequest(updatedTopics);
+    // Apply the request to the Raft node
+    // Create a closure to handle the result
+    TopicsClosure closure = new TopicsClosure(this, request, null);
+    try {
+      // Serialize the request
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      ObjectOutputStream oos = new ObjectOutputStream(baos);
+      oos.writeObject(request);
+      oos.flush();
+      byte[] data = baos.toByteArray();
+
+      // Apply the request to the Raft node
+      this.node.apply(new Task(ByteBuffer.wrap(data), closure));
+    } catch (IOException e) {
+      e.printStackTrace();
+      // Handle exception
+    }
+  }
+
+  private void startMembershipMonitor() {
+    // Implement membership monitoring and call partitionManager.handleMembershipChange()
+    // For demonstration, we'll simulate periodic checks
+    Timer timer = new Timer();
+    timer.schedule(new TimerTask() {
+      @Override
+      public void run() {
+        List<PeerId> currentMembers = getCurrentPeers();
+        partitionManager.handleMembershipChange(currentMembers);
+      }
+    }, 5000, 10000); // Start after 5 seconds, repeat every 10 seconds
   }
 
   /**
@@ -214,9 +196,6 @@ public class TopicsRaftServer {
   public void shutdown() {
     if (raftGroupService != null) {
       raftGroupService.shutdown();
-    }
-    if (scheduler != null && !scheduler.isShutdown()) {
-      scheduler.shutdown();
     }
   }
 }

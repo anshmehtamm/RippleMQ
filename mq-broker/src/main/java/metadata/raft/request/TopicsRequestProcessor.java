@@ -1,7 +1,6 @@
-package topics.raft.topics.request;
+package metadata.raft.request;
 
 import com.alipay.sofa.jraft.Closure;
-import com.alipay.sofa.jraft.Status;
 import com.alipay.sofa.jraft.entity.Task;
 import com.alipay.sofa.jraft.rpc.RpcContext;
 import com.alipay.sofa.jraft.rpc.RpcProcessor;
@@ -12,7 +11,7 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 
-import topics.raft.topics.TopicsRaftServer;
+import metadata.raft.TopicsRaftServer;
 
 /**
  * TopicsRequestProcessor handles incoming Raft requests,
@@ -35,25 +34,18 @@ public class TopicsRequestProcessor implements RpcProcessor<TopicsRequest> {
   public void handleRequest(RpcContext rpcCtx, TopicsRequest request) {
     if (!request.isWrite()) {
       // Handle read operation directly without Raft
-      TopicsResponse response = new TopicsResponse();
-      response.setSuccess(true);
-      response.setTopics(topicsRaftServer.getStateMachine().getTopics());
-      rpcCtx.sendResponse(response);
+      rpcCtx.sendResponse(topicsRaftServer.getStateMachine().getTopics());
     } else {
       // Handle write operations with Raft
-      TopicsResponse response = new TopicsResponse();
-
       // Create a closure to handle the response after operation
-      TopicsClosure done = new TopicsClosure(topicsRaftServer, request, response, new Closure() {
+      TopicsClosure done = new TopicsClosure(topicsRaftServer, request, new Closure() {
         @Override
-        public void run(Status status) {
+        public void run(com.alipay.sofa.jraft.Status status) {
           if (status.isOk()) {
-            response.setSuccess(true);
+            rpcCtx.sendResponse("Success");
           } else {
-            response.setSuccess(false);
-            response.setErrorMsg(status.getErrorMsg());
+            rpcCtx.sendResponse("Error: " + status.getErrorMsg());
           }
-          rpcCtx.sendResponse(response);
         }
       });
 
@@ -66,12 +58,10 @@ public class TopicsRequestProcessor implements RpcProcessor<TopicsRequest> {
         byte[] data = baos.toByteArray();
 
         // Apply the request to the Raft node
-        topicsRaftServer.getRaftGroupService().getRaftNode().apply(new Task(ByteBuffer.wrap(data), done));
+        topicsRaftServer.getNode().apply(new Task(ByteBuffer.wrap(data), done));
       } catch (IOException e) {
         e.printStackTrace();
-        response.setSuccess(false);
-        response.setErrorMsg("Serialization failed: " + e.getMessage());
-        rpcCtx.sendResponse(response);
+        rpcCtx.sendResponse("Serialization failed: " + e.getMessage());
       }
     }
   }

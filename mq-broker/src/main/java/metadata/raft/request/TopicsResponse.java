@@ -1,8 +1,8 @@
-package topics.raft.topics.request;
+package metadata.raft.request;
 
 import java.io.Serializable;
 import java.util.List;
-import topics.Topic;
+import partition.Topic;
 
 /**
  * TopicsResponse represents the server's response to a TopicsRequest.
