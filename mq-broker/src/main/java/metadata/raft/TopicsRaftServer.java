@@ -36,6 +36,7 @@ public class TopicsRaftServer {
   private PartitionManager partitionManager;
 
   private CliService cliService;
+  RpcServer rpcServer;
 
   private static final String GROUP_ID = "topics_cluster";
   private static final String STORAGE_DIR = "/tmp/raft/topics";
@@ -53,9 +54,25 @@ public class TopicsRaftServer {
    * @throws IOException If an I/O error occurs during setup
    */
   public TopicsRaftServer(ClusterConfig clusterConfig, String brokerId) throws IOException {
-    this.partitionManager = new PartitionManager();
-    this.partitionManager.setTopicsRaftServer(this);
+    setSelfPeerId(clusterConfig, brokerId);
+
+
+
     setupRaft(clusterConfig, brokerId);
+    this.partitionManager = new PartitionManager(selfPeerId, rpcServer);
+    this.partitionManager.setTopicsRaftServer(this);
+    this.stateMachine.setPartitionManager(partitionManager);
+  }
+
+  private void setSelfPeerId(ClusterConfig clusterConfig, String brokerId) {
+    // Parse self PeerId
+    ClusterConfig.BrokerConfig selfBroker = clusterConfig.getBrokerConfig(brokerId);
+    if (selfBroker == null) {
+      throw new IllegalArgumentException("Broker with ID " + brokerId + " not found in the cluster configuration.");
+    }
+
+    selfPeerId = new PeerId(selfBroker.getHostname(), selfBroker.getPort());
+    System.out.println("Self PeerId: " + selfPeerId);
   }
 
   /**
@@ -72,29 +89,32 @@ public class TopicsRaftServer {
   private void setupRaft(ClusterConfig clusterConfig, String brokerId) throws IOException {
     // Ensure storage directories exist
     FileUtils.forceMkdir(new File(STORAGE_DIR));
-
-    // Parse self PeerId
-    ClusterConfig.BrokerConfig selfBroker = clusterConfig.getBrokerConfig(brokerId);
-    if (selfBroker == null) {
-      throw new IllegalArgumentException("Broker with ID " + brokerId + " not found in the cluster configuration.");
-    }
-
-    selfPeerId = new PeerId(selfBroker.getHostname(), selfBroker.getPort());
-    System.out.println("Self PeerId: " + selfPeerId);
-
     // Create and configure RPC server
-    final RpcServer rpcServer = RaftRpcServerFactory.createRaftRpcServer(selfPeerId.getEndpoint());
+    this.rpcServer = RaftRpcServerFactory.createRaftRpcServer(selfPeerId.getEndpoint());
 
     // Register the TopicsRequestProcessor
     rpcServer.registerProcessor(new TopicsRequestProcessor(this));
-
     // Initialize the state machine with a reference to PartitionManager
     this.stateMachine = new TopicsStateMachine(this.partitionManager, selfPeerId);
-
     // Configure Raft node options
     NodeOptions nodeOptions = new NodeOptions();
+    StringBuilder peerString = buildPeerString(clusterConfig);
+    initialConf = new Configuration();
+    if (!initialConf.parse(peerString.toString())) {
+      throw new IllegalArgumentException("Failed to parse initial cluster configuration.");
+    }
     nodeOptions.setElectionTimeoutMs(3000); // Increased for stability
+    nodeOptions.setInitialConf(initialConf);
+    nodeOptions.setFsm(this.stateMachine);
+    nodeOptions.setRaftMetaUri(STORAGE_DIR + File.separator + "raft_meta");
+    nodeOptions.setLogUri(STORAGE_DIR + File.separator + "raft_log");
+    nodeOptions.setSnapshotUri(STORAGE_DIR + File.separator + "raft_snapshot");
+    // Initialize RaftGroupService
+    this.raftGroupService = new RaftGroupService(GROUP_ID, selfPeerId, nodeOptions, rpcServer);
+    this.cliService = RaftServiceFactory.createAndInitCliService(new CliOptions());
+  }
 
+  private StringBuilder buildPeerString(ClusterConfig clusterConfig) {
     // Build initial cluster configuration
     StringBuilder peerString = new StringBuilder();
     this.peers = new ArrayList<>();
@@ -107,20 +127,7 @@ public class TopicsRaftServer {
     if (peerString.length() > 0) {
       peerString.setLength(peerString.length() - 1); // Remove trailing comma
     }
-    initialConf = new Configuration();
-    if (!initialConf.parse(peerString.toString())) {
-      throw new IllegalArgumentException("Failed to parse initial cluster configuration.");
-    }
-
-    nodeOptions.setInitialConf(initialConf);
-    nodeOptions.setFsm(this.stateMachine);
-    nodeOptions.setRaftMetaUri(STORAGE_DIR + File.separator + "raft_meta");
-    nodeOptions.setLogUri(STORAGE_DIR + File.separator + "raft_log");
-    nodeOptions.setSnapshotUri(STORAGE_DIR + File.separator + "raft_snapshot");
-
-    // Initialize RaftGroupService
-    this.raftGroupService = new RaftGroupService(GROUP_ID, selfPeerId, nodeOptions, rpcServer);
-    this.cliService = RaftServiceFactory.createAndInitCliService(new CliOptions());
+    return peerString;
   }
 
   public PeerId getSelfPeerId() {
@@ -137,14 +144,6 @@ public class TopicsRaftServer {
 
   public TopicsStateMachine getStateMachine() {
     return stateMachine;
-  }
-
-  public RaftGroupService getRaftGroupService() {
-    return raftGroupService;
-  }
-
-  public PartitionManager getPartitionManager() {
-    return partitionManager;
   }
 
   /**
@@ -184,8 +183,12 @@ public class TopicsRaftServer {
     timer.schedule(new TimerTask() {
       @Override
       public void run() {
-        List<PeerId> currentMembers = getCurrentPeers();
-        partitionManager.handleMembershipChange(currentMembers);
+        try {
+          List<PeerId> currentMembers = getCurrentPeers();
+          partitionManager.handleMembershipChange(currentMembers);
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
       }
     }, 5000, 10000); // Start after 5 seconds, repeat every 10 seconds
   }

@@ -17,7 +17,7 @@ brokers:
 topics:
   - name: 'topic1'
     partitions: 3
-    replicationFactor: 2
+    replicationFactor: 3
   - name: 'topic2'
-    partitions: 5
-    replicationFactor: 2
+    partitions: 3
+    replicationFactor: 3

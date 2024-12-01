@@ -73,4 +73,8 @@ public class TopicsStateMachine extends StateMachineAdapter {
       iterator.next();
     }
   }
+
+  public void setPartitionManager(PartitionManager partitionManager) {
+    this.partitionManager = partitionManager;
+  }
 }
