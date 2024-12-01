@@ -8,11 +8,10 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.*;
 
-import partition.PartitionAssignment;
-import partition.raft.request.ConsumerOffsetUpdateRequest;
-import partition.raft.request.MessageAppendRequest;
-import partition.raft.request.MessageBatchReadRequest;
-import partition.raft.request.MessageBatchReadResponse;
+import request.partition.ConsumerOffsetUpdateRequest;
+import request.partition.MessageAppendRequest;
+import request.partition.MessageBatchReadRequest;
+import request.partition.MessageBatchReadResponse;
 
 /**
  * PartitionStateMachine manages the state of the partition,

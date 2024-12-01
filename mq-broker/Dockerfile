@@ -15,7 +15,7 @@ COPY src ./src
 COPY config ./config
 
 # Package the application
-RUN mvn clean package -DskipTests
+RUN mvn --batch-mode -T 1C package -DskipTests
 
 # Stage 2: Create the runtime image
 FROM openjdk:11-jre-slim

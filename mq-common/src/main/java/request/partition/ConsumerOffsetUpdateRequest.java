@@ -1,4 +1,4 @@
-package partition.raft.request;
+package request.partition;
 
 /**
  * ConsumerOffsetUpdateRequest represents a request to update the consumer's offset after acknowledgment.

@@ -1,4 +1,4 @@
-package partition.raft.request;
+package request.partition;
 
 import java.io.Serializable;
 import java.util.List;

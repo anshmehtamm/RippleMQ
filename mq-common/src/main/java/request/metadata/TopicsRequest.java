@@ -1,4 +1,4 @@
-package metadata.raft.request;
+package request.metadata;
 
 import java.io.Serializable;
 import java.util.List;

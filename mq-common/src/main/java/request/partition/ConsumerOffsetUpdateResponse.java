@@ -1,18 +1,18 @@
-package partition.raft.request;
+package request.partition;
 
 import java.io.Serializable;
 
 /**
- * MessageAppendResponse represents the response to a MessageAppendRequest.
+ * ConsumerOffsetUpdateResponse represents the response to a ConsumerOffsetUpdateRequest.
  */
-public class MessageAppendResponse implements Serializable {
+public class ConsumerOffsetUpdateResponse implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
   private boolean success;
   private String errorMsg;
 
-  public MessageAppendResponse() {
+  public ConsumerOffsetUpdateResponse() {
   }
 
   // Getters and Setters

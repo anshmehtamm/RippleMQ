@@ -5,65 +5,109 @@ import com.alipay.sofa.jraft.entity.PeerId;
 import java.util.*;
 
 /**
- * PartitionAssigner handles partition assignment to brokers.
+ * PartitionAssigner handles partition assignment to brokers,
+ * aiming to minimize partition movement during cluster changes.
  */
 public class PartitionAssigner {
 
   /**
    * Assigns partitions to brokers based on the current cluster state.
+   * Keeps existing assignments when possible and reassigns partitions
+   * from dead brokers to live brokers.
    *
    * @param topics  The list of topics to assign partitions for
-   * @param peers   The list of PeerIds currently in the cluster
+   * @param currentPeers   The list of PeerIds currently in the cluster
    * @return The updated list of topics with partition assignments
    */
-  public List<Topic> assignPartitions(List<Topic> topics, List<PeerId> peers) {
-    if (peers == null || peers.isEmpty()) {
+  public List<Topic> assignPartitions(List<Topic> topics, List<PeerId> currentPeers) {
+    if (currentPeers == null || currentPeers.isEmpty()) {
       throw new IllegalArgumentException("Peer list cannot be null or empty");
     }
 
+    // Convert currentPeers to a set of strings for easier comparison
+    Set<String> liveBrokers = new HashSet<>();
+    for (PeerId peer : currentPeers) {
+      liveBrokers.add(peer.toString());
+    }
+
+    // Map to keep track of broker load (number of partitions assigned)
     Map<String, Integer> brokerLoad = new HashMap<>();
-    for (PeerId peer : peers) {
-      brokerLoad.put(peer.toString(), 0);
+    for (String brokerId : liveBrokers) {
+      brokerLoad.put(brokerId, 0);
     }
 
     for (Topic topic : topics) {
-      List<PartitionAssignment> assignments = new ArrayList<>();
-      int numPartitions = topic.getPartitions();
+      List<PartitionAssignment> assignments = topic.getPartitionAssignments();
       int replicationFactor = topic.getReplicationFactor();
 
-      if (replicationFactor > peers.size()) {
-        throw new IllegalArgumentException("Replication factor cannot be greater than the number of brokers");
+      if (replicationFactor > liveBrokers.size()) {
+        throw new IllegalArgumentException("Replication factor cannot be greater than the number of live brokers");
       }
 
-      // Create a list of broker IDs
-      List<String> brokerIds = new ArrayList<>();
-      for (PeerId peer : peers) {
-        brokerIds.add(peer.toString());
+      // If there are no existing assignments, initialize them
+      if (assignments == null || assignments.isEmpty()) {
+        assignments = new ArrayList<>();
+        topic.setPartitionAssignments(assignments);
+        // Initialize assignments for all partitions
+        for (int partitionId = 0; partitionId < topic.getPartitions(); partitionId++) {
+          assignments.add(new PartitionAssignment(partitionId, new ArrayList<>()));
+        }
       }
 
-      // For each partition, assign it to replicationFactor brokers
-      for (int partitionId = 0; partitionId < numPartitions; partitionId++) {
-        // Sort brokers by current load (ascending)
-        brokerIds.sort(Comparator.comparingInt(brokerLoad::get));
-
-        List<String> assignedBrokers = new ArrayList<>();
-
-        // Assign to the least loaded brokers
-        for (String brokerId : brokerIds) {
-          if (assignedBrokers.size() < replicationFactor) {
-            assignedBrokers.add(brokerId);
-            brokerLoad.put(brokerId, brokerLoad.get(brokerId) + 1);
-          } else {
-            break;
-          }
+      // Reassign partitions as necessary
+      for (PartitionAssignment assignment : assignments) {
+        List<String> currentAssignment = assignment.getBrokerPeerIds();
+        if (currentAssignment == null) {
+          currentAssignment = new ArrayList<>();
+          assignment.setBrokerPeerIds(currentAssignment);
         }
 
-        assignments.add(new PartitionAssignment(partitionId, assignedBrokers));
-      }
+        // Remove dead brokers from the current assignment
+        List<String> deadBrokers = new ArrayList<>();
+        for (String brokerId : currentAssignment) {
+          if (!liveBrokers.contains(brokerId)) {
+            deadBrokers.add(brokerId);
+          } else {
+            // Broker is alive, update broker load
+            brokerLoad.put(brokerId, brokerLoad.get(brokerId) + 1);
+          }
+        }
+        currentAssignment.removeAll(deadBrokers);
 
-      topic.setPartitionAssignments(assignments);
+        // Add new brokers to maintain replication factor
+        while (currentAssignment.size() < replicationFactor) {
+          String leastLoadedBroker = getLeastLoadedBroker(brokerLoad, currentAssignment);
+          if (leastLoadedBroker == null) {
+            // No more brokers to assign (should not happen)
+            break;
+          }
+          currentAssignment.add(leastLoadedBroker);
+          brokerLoad.put(leastLoadedBroker, brokerLoad.get(leastLoadedBroker) + 1);
+        }
+      }
     }
 
     return topics;
+  }
+
+  /**
+   * Finds the live broker with the least load that is not already in the current assignment.
+   *
+   * @param brokerLoad        Map of broker IDs to their current load
+   * @param currentAssignment List of broker IDs already assigned to the partition
+   * @return The broker ID with the least load, or null if none are available
+   */
+  private String getLeastLoadedBroker(Map<String, Integer> brokerLoad, List<String> currentAssignment) {
+    String leastLoadedBroker = null;
+    int minLoad = Integer.MAX_VALUE;
+    for (Map.Entry<String, Integer> entry : brokerLoad.entrySet()) {
+      String brokerId = entry.getKey();
+      int load = entry.getValue();
+      if (!currentAssignment.contains(brokerId) && load < minLoad) {
+        leastLoadedBroker = brokerId;
+        minLoad = load;
+      }
+    }
+    return leastLoadedBroker;
   }
 }

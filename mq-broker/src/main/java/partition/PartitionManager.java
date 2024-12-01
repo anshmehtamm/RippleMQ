@@ -26,6 +26,7 @@ public class PartitionManager {
 
   // Map of partition group IDs to PartitionRaftServer instances
   private Map<String, PartitionRaftServer> activePartitions = new HashMap<>();
+  private int counter = 0;
 
   public PartitionManager(PeerId selfPeerId, RpcServer rpcServer) {
     this.selfPeerId = selfPeerId;
@@ -183,7 +184,9 @@ public class PartitionManager {
   private void startPartition(String partitionGroupId, List<PeerId> partitionPeers) throws IOException {
 
     // Create and start PartitionRaftServer
-    PartitionRaftServer partitionRaftServer = new PartitionRaftServer(partitionGroupId, selfPeerId, partitionPeers, this.rpcServer);
+    counter+=1;
+    PartitionRaftServer partitionRaftServer = new PartitionRaftServer(partitionGroupId, selfPeerId, partitionPeers,
+            this.rpcServer, this.counter);
     // Add to active partitions
     activePartitions.put(partitionGroupId, partitionRaftServer);
     partitionRaftServer.start();

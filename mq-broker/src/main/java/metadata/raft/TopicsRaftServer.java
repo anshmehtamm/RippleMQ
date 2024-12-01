@@ -19,10 +19,11 @@ import java.util.*;
 
 import config.ClusterConfig;
 import partition.PartitionManager;
-import partition.Topic;
 import metadata.raft.request.TopicsClosure;
-import metadata.raft.request.TopicsRequest;
+// import TopicsRequest from org.example.mq-co
 import metadata.raft.request.TopicsRequestProcessor;
+import partition.Topic;
+import request.metadata.TopicsRequest;
 
 /**
  * TopicsRaftServer sets up and manages the Raft server,

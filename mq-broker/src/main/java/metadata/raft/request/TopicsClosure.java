@@ -4,6 +4,7 @@ import com.alipay.sofa.jraft.Closure;
 import com.alipay.sofa.jraft.Status;
 
 import metadata.raft.TopicsRaftServer;
+import request.metadata.TopicsRequest;
 
 /**
  * TopicsClosure handles the callback after a Raft write operation is completed.

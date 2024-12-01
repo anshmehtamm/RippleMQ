@@ -12,7 +12,7 @@ import java.util.List;
 
 import partition.PartitionManager;
 import partition.Topic;
-import metadata.raft.request.TopicsRequest;
+import request.metadata.TopicsRequest;
 
 
 /**

@@ -1,7 +1,5 @@
 package partition.raft.request;
 
-import com.alipay.sofa.jraft.Closure;
-import com.alipay.sofa.jraft.Status;
 import com.alipay.sofa.jraft.entity.Task;
 import com.alipay.sofa.jraft.rpc.RpcContext;
 import com.alipay.sofa.jraft.rpc.RpcProcessor;
@@ -13,6 +11,13 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 
 import partition.raft.PartitionRaftServer;
+import request.partition.ConsumerOffsetUpdateRequest;
+import request.partition.ConsumerOffsetUpdateResponse;
+import request.partition.MessageAppendRequest;
+import request.partition.MessageAppendResponse;
+import request.partition.MessageBatchReadRequest;
+import request.partition.MessageBatchReadResponse;
+import request.partition.PartitionRequest;
 
 /**
  * PartitionRequestProcessor handles incoming requests,
@@ -22,15 +27,17 @@ public class PartitionRequestProcessor implements RpcProcessor<PartitionRequest>
 
   private final PartitionRaftServer partitionRaftServer;
   private final String groupId;
+  private final int counter;
 
   /**
    * Constructor that accepts a PartitionRaftServer instance.
    *
    * @param partitionRaftServer The Raft server managing the partition
    */
-  public PartitionRequestProcessor(PartitionRaftServer partitionRaftServer, String groupId) {
+  public PartitionRequestProcessor(PartitionRaftServer partitionRaftServer, String groupId, int counter) {
     this.partitionRaftServer = partitionRaftServer;
     this.groupId = groupId;
+    this.counter = counter;
   }
 
   @Override
@@ -125,7 +132,7 @@ public class PartitionRequestProcessor implements RpcProcessor<PartitionRequest>
 
   @Override
   public String interest() {
-    return groupId;
+    return groupId+"-"+counter;
   }
 
   @Override

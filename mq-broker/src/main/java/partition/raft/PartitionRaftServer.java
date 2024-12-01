@@ -1,5 +1,6 @@
 package partition.raft;
 
+import com.alipay.remoting.rpc.protocol.UserProcessorRegisterHelper;
 import com.alipay.sofa.jraft.CliService;
 import com.alipay.sofa.jraft.Node;
 import com.alipay.sofa.jraft.RaftGroupService;
@@ -44,14 +45,14 @@ public class PartitionRaftServer {
    * @param peers   The list of PeerIds in this Raft group
    * @throws IOException If an I/O error occurs during setup
    */
-  public PartitionRaftServer(String groupId, PeerId selfId, List<PeerId> peers, RpcServer rpcServer) throws IOException {
+  public PartitionRaftServer(String groupId, PeerId selfId, List<PeerId> peers, RpcServer rpcServer, int counter) throws IOException {
     this.groupId = groupId;
     this.storageDir = "data/" + groupId;
     this.peerId = selfId;
     this.peers = peers;
     this.rpcServer = rpcServer;
 
-    setupRaft();
+    setupRaft(counter);
     System.err.println("PartitionRaftServer for group " + groupId + " has been initialized.");
   }
 
@@ -66,12 +67,12 @@ public class PartitionRaftServer {
     System.err.println("PartitionRaftServer for group " + groupId + " has been started.");
   }
 
-  private void setupRaft() throws IOException {
+  private void setupRaft(int counter) throws IOException {
     // Ensure storage directories exist
     FileUtils.forceMkdir(new File(storageDir));
 
     // Register the PartitionRequestProcessor
-    this.rpcServer.registerProcessor(new PartitionRequestProcessor(this, groupId));
+    this.rpcServer.registerProcessor(new PartitionRequestProcessor(this, groupId, counter));
     System.err.println("PartitionRequestProcessor for group " + groupId + " has been registered.");
     // Initialize the state machine
     this.stateMachine = new PartitionStateMachine(this.groupId);
@@ -117,4 +118,5 @@ public class PartitionRaftServer {
   public String getGroupId() {
     return groupId;
   }
+
 }

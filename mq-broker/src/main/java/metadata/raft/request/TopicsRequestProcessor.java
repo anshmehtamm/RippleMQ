@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 
 import metadata.raft.TopicsRaftServer;
+import request.metadata.TopicsRequest;
 
 /**
  * TopicsRequestProcessor handles incoming Raft requests,

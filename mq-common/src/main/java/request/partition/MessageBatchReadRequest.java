@@ -1,4 +1,4 @@
-package partition.raft.request;
+package request.partition;
 
 /**
  * MessageBatchReadRequest represents a request from a consumer to read messages.

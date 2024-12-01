@@ -4,6 +4,7 @@ import com.alipay.sofa.jraft.Closure;
 import com.alipay.sofa.jraft.Status;
 
 import partition.raft.PartitionRaftServer;
+import request.partition.PartitionRequest;
 
 /**
  * PartitionClosure handles the callback after a Raft write operation is completed.
