@@ -3,7 +3,7 @@ package config;
 import java.io.Serializable;
 import java.util.List;
 
-import partition.Topic;
+import metadata.model.Topic;
 
 /**
  * ClusterConfig holds the configuration of the cluster, including brokers and topics.
@@ -15,6 +15,7 @@ public class ClusterConfig implements Serializable {
   private List<BrokerConfig> brokers;
   private List<Topic> topics;
   private String configPath; // Path to the configuration file (optional)
+  private String enableAutoCommit; // Enable auto commit for consumers
 
   // Getters and Setters
 
@@ -41,6 +42,7 @@ public class ClusterConfig implements Serializable {
   public void setConfigPath(String configPath) {
     this.configPath = configPath;
   }
+
 
   /**
    * Retrieves the BrokerConfig for the given broker ID.

@@ -1,9 +1,9 @@
-package request.partition;
+package request.metadata;
 
 import java.io.Serializable;
 import java.util.List;
 
-import partition.Topic;
+import metadata.model.Topic;
 
 /**
  * TopicsResponse represents the server's response to a TopicsRequest.

@@ -1,4 +1,4 @@
-package partition;
+package metadata;
 
 import com.alipay.sofa.jraft.Node;
 import com.alipay.sofa.jraft.entity.PeerId;
@@ -7,10 +7,13 @@ import com.alipay.sofa.jraft.rpc.RpcServer;
 import java.io.IOException;
 import java.util.*;
 
+import broker.BrokerRpcClient;
 import config.ClusterConfigManager;
 
+import metadata.model.PartitionAssignment;
+import metadata.model.Topic;
+import metadata.raft.PartitionRaftServer;
 import metadata.raft.TopicsRaftServer;
-import partition.raft.PartitionRaftServer;
 
 /**
  * PartitionManager handles Raft events such as leader changes,
@@ -184,9 +187,9 @@ public class PartitionManager {
   private void startPartition(String partitionGroupId, List<PeerId> partitionPeers) throws IOException {
 
     // Create and start PartitionRaftServer
-    counter+=1;
+
     PartitionRaftServer partitionRaftServer = new PartitionRaftServer(partitionGroupId, selfPeerId, partitionPeers,
-            this.rpcServer, this.counter);
+            this.rpcServer, this);
     // Add to active partitions
     activePartitions.put(partitionGroupId, partitionRaftServer);
     partitionRaftServer.start();
@@ -215,4 +218,79 @@ public class PartitionManager {
       stopPartition(partitionGroupId);
     }
   }
+
+
+  public PartitionRaftServer getPartitionRaftServer(String partitionGroupId) {
+    return activePartitions.get(partitionGroupId);
+  }
+
+  public synchronized boolean handlePartitionLeaderChange(String groupId, String leaderAddress, boolean redirect) {
+      // am i the cluster leader
+      Node node = topicsRaftServer.getNode();
+      if (node != null && node.isLeader()) {
+        // update topics via raft
+        makeLeaderForPartition(groupId, leaderAddress);
+      }else if (!redirect){
+        // redirect the request to the leader
+        redirectPartitionLeaderChangeToTopicLeader(groupId, leaderAddress);
+      } else{
+        return false;
+      }
+      return true;
+    }
+
+
+  private void redirectPartitionLeaderChangeToTopicLeader(String groupId, String leaderAddress) {
+    // use rpc client to redirect the request to the leader
+    // run on separate thread,  retry for 3 times, with interval of 3 seconds
+    new Thread(() -> {
+      int retries = 0;
+      while (retries < 3) {
+        try {
+          Node node = topicsRaftServer.getNode();
+          PeerId leader = node.getLeaderId();
+          BrokerRpcClient.getInstance(selfPeerId).updatePartitionLeader
+                  (leader.getEndpoint(), groupId, leaderAddress);
+          break;
+        } catch (RuntimeException e) {
+          System.err.println("PartitionManager: Failed to update leader for partition " + groupId+" as " +
+                  e.getMessage());
+          retries++;
+          try {
+            Thread.sleep(3000);
+          } catch (InterruptedException ex) {
+            ex.printStackTrace();
+          }
+        }
+      }
+    }).start();
+  }
+
+  public synchronized void handlePartitionLeaderChange(String groupId) {
+    String leaderAddress = selfPeerId.toString();
+    handlePartitionLeaderChange(groupId, leaderAddress, false);
 }
+
+  private synchronized void makeLeaderForPartition(String groupId, String leaderAddress) {
+    List<Topic> topics = topicsRaftServer.getStateMachine().getTopics();
+    String topicName = groupId.split("-")[0];
+    int partitionId = Integer.parseInt(groupId.split("-")[1]);
+    boolean updated = false;
+    for (Topic topic: topics){
+      if (topic.getName().equals(topicName)){
+        for (PartitionAssignment assignment: topic.getPartitionAssignments()){
+          if (assignment.getPartitionId() == partitionId){
+            assignment.setLeader(leaderAddress);
+            topicsRaftServer.updateTopics(topics);
+            updated = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!updated){
+      System.err.println("PartitionManager: Failed to update leader for partition " + groupId);
+    }
+  }
+  }
+

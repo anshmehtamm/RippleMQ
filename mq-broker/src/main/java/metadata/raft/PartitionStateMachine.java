@@ -1,4 +1,4 @@
-package partition.raft;
+package metadata.raft;
 
 import com.alipay.sofa.jraft.Iterator;
 import com.alipay.sofa.jraft.Status;
@@ -8,6 +8,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.*;
 
+import metadata.PartitionManager;
 import request.partition.ConsumerOffsetUpdateRequest;
 import request.partition.MessageAppendRequest;
 import request.partition.MessageBatchReadRequest;
@@ -22,9 +23,14 @@ public class PartitionStateMachine extends StateMachineAdapter {
   private final List<String> messages = new ArrayList<>();
   private final Map<String, Long> consumerOffsets = new HashMap<>();
   private final String groupId;
-  public PartitionStateMachine(String groupId) {
+
+  private PartitionManager partitionManager;
+
+  public PartitionStateMachine(String groupId, PartitionManager partitionManager) {
     this.groupId = groupId;
+    this.partitionManager = partitionManager;
   }
+
 
   @Override
   public void onApply(Iterator iterator) {
@@ -40,6 +46,7 @@ public class PartitionStateMachine extends StateMachineAdapter {
             // Append messages to the partition
             synchronized (messages) {
               messages.addAll(request.getMessages());
+              System.err.println("message queue for group " + groupId + " size is now: "+ messages.size());
             }
           } else if (obj instanceof ConsumerOffsetUpdateRequest) {
             ConsumerOffsetUpdateRequest request = (ConsumerOffsetUpdateRequest) obj;
@@ -100,5 +107,6 @@ public class PartitionStateMachine extends StateMachineAdapter {
   public void onLeaderStart(long term) {
     super.onLeaderStart(term);
     System.out.println("PartitionStateMachine: Leader started for partition " + groupId);
+    partitionManager.handlePartitionLeaderChange(groupId);
   }
 }

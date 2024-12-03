@@ -1,8 +1,11 @@
-package partition;
+package metadata;
 
 import com.alipay.sofa.jraft.entity.PeerId;
 
 import java.util.*;
+
+import metadata.model.PartitionAssignment;
+import metadata.model.Topic;
 
 /**
  * PartitionAssigner handles partition assignment to brokers,

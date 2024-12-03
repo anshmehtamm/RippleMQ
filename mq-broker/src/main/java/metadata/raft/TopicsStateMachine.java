@@ -10,8 +10,8 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import partition.PartitionManager;
-import partition.Topic;
+import metadata.PartitionManager;
+import metadata.model.Topic;
 import request.metadata.TopicsRequest;
 
 

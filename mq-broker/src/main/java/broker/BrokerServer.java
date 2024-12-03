@@ -12,6 +12,7 @@ public class BrokerServer {
 
   private final ClusterConfig clusterConfig;
   private final BrokerMetadataManager clusterManager;
+  private final BrokerRpcClient rpcClient;
 
   /**
    * Constructor that initializes the BrokerServer.
@@ -23,6 +24,7 @@ public class BrokerServer {
   public BrokerServer(ClusterConfig clusterConfig, String brokerId) throws IOException {
     this.clusterConfig = clusterConfig;
     this.clusterManager = new BrokerMetadataManager(clusterConfig, brokerId);
+    this.rpcClient  = BrokerRpcClient.getInstance(clusterManager.getRaftServer().getSelfPeerId());
   }
 
   /**

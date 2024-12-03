@@ -10,12 +10,16 @@ public class MessageAppendRequest implements PartitionRequest {
   private static final long serialVersionUID = 1L;
 
   private List<String> messages;
+  private String topicName;
+  private int partitionId;
 
   public MessageAppendRequest() {
   }
 
-  public MessageAppendRequest(List<String> messages) {
+  public MessageAppendRequest(List<String> messages, String topicName, int partitionId) {
     this.messages = messages;
+    this.topicName = topicName;
+    this.partitionId = partitionId;
   }
 
   // Getters and Setters
@@ -25,5 +29,11 @@ public class MessageAppendRequest implements PartitionRequest {
 
   public void setMessages(List<String> messages) {
     this.messages = messages;
+  }
+
+
+  @Override
+  public String getGroupId() {
+    return topicName+"-"+partitionId;
   }
 }

@@ -9,13 +9,18 @@ public class MessageBatchReadRequest implements PartitionRequest {
 
   private String consumerId;
   private int maxMessages;
+  private String topicName;
+  private int partitionId;
 
   public MessageBatchReadRequest() {
   }
 
-  public MessageBatchReadRequest(String consumerId, int maxMessages) {
+  public MessageBatchReadRequest(String consumerId, int maxMessages, String topicName, int partitionId) {
     this.consumerId = consumerId;
     this.maxMessages = maxMessages;
+    this.topicName = topicName;
+    this.partitionId = partitionId;
+
   }
 
   // Getters and Setters
@@ -33,5 +38,10 @@ public class MessageBatchReadRequest implements PartitionRequest {
 
   public void setMaxMessages(int maxMessages) {
     this.maxMessages = maxMessages;
+  }
+
+  @Override
+  public String getGroupId() {
+    return topicName+"-"+partitionId;
   }
 }

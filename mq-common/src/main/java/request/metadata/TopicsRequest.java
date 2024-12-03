@@ -2,8 +2,9 @@ package request.metadata;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 
-import partition.Topic;
+import metadata.model.Topic;
 
 /**
  * TopicsRequest represents a request to either read or write the entire list of topics.
@@ -54,4 +55,7 @@ public class TopicsRequest implements Serializable {
   public String toString() {
     return "TopicsRequest{isWrite=" + isWrite + ", topics=" + topics + "}";
   }
+
+
+
 }

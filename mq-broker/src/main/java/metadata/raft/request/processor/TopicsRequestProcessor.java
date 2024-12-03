@@ -1,4 +1,4 @@
-package metadata.raft.request;
+package metadata.raft.request.processor;
 
 import com.alipay.sofa.jraft.Closure;
 import com.alipay.sofa.jraft.entity.Task;
@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 
 import metadata.raft.TopicsRaftServer;
+import metadata.raft.request.TopicsClosure;
 import request.metadata.TopicsRequest;
 
 /**
@@ -34,6 +35,7 @@ public class TopicsRequestProcessor implements RpcProcessor<TopicsRequest> {
   @Override
   public void handleRequest(RpcContext rpcCtx, TopicsRequest request) {
     if (!request.isWrite()) {
+      System.err.println("Read operation");
       // Handle read operation directly without Raft
       rpcCtx.sendResponse(topicsRaftServer.getStateMachine().getTopics());
     } else {

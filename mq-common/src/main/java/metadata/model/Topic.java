@@ -1,9 +1,7 @@
-package partition;
+package metadata.model;
 
 import java.io.Serializable;
 import java.util.List;
-
-import partition.PartitionAssignment;
 
 /**
  * Topic represents an individual topic with its name, number of partitions, replication factor,

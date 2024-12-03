@@ -1,9 +1,9 @@
-package partition.raft.request;
+package metadata.raft.request;
 
 import com.alipay.sofa.jraft.Closure;
 import com.alipay.sofa.jraft.Status;
 
-import partition.raft.PartitionRaftServer;
+import metadata.raft.PartitionRaftServer;
 import request.partition.PartitionRequest;
 
 /**
@@ -36,15 +36,4 @@ public class PartitionClosure implements Closure {
   }
 
   // Getters (optional)
-  public PartitionRaftServer getPartitionRaftServer() {
-    return partitionRaftServer;
-  }
-
-  public PartitionRequest getRequest() {
-    return request;
-  }
-
-  public Closure getDone() {
-    return done;
-  }
 }

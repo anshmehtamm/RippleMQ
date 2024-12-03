@@ -35,16 +35,4 @@ public class TopicsClosure implements Closure {
     }
   }
 
-  // Getters (optional)
-  public TopicsRaftServer getTopicsRaftServer() {
-    return topicsRaftServer;
-  }
-
-  public TopicsRequest getRequest() {
-    return request;
-  }
-
-  public Closure getDone() {
-    return done;
-  }
 }

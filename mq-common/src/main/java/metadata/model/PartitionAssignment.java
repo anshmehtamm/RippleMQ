@@ -1,4 +1,4 @@
-package partition;
+package metadata.model;
 
 import java.io.Serializable;
 import java.util.List;
@@ -12,6 +12,8 @@ public class PartitionAssignment implements Serializable {
 
   private int partitionId;
   private List<String> brokerPeerIds; // List of PeerIds in string format assigned to this partition
+
+  private String leaderId; // Leader PeerId for this partition
 
   public PartitionAssignment(int partitionId, List<String> brokerPeerIds) {
     this.partitionId = partitionId;
@@ -36,8 +38,17 @@ public class PartitionAssignment implements Serializable {
     this.brokerPeerIds = brokerPeerIds;
   }
 
+  public String getLeader() {
+    return leaderId;
+  }
+
+  public void setLeader(String leaderId) {
+    this.leaderId = leaderId;
+  }
+
   @Override
   public String toString() {
-    return "PartitionAssignment{partitionId=" + partitionId + ", brokers=" + brokerPeerIds + "}";
+    return "PartitionAssignment{partitionId=" + partitionId + ", brokers=" + brokerPeerIds + ", " +
+            "leaderId='" + leaderId + "'}";
   }
 }
