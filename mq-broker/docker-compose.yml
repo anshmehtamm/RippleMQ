@@ -6,6 +6,8 @@ services:
     hostname: "broker1"
     container_name: "broker1"
     command: ["-id", "1"]
+    ports:
+      - "9092:9092"
 
   broker2:
     image: mq-broker
@@ -14,6 +16,8 @@ services:
     hostname: "broker2"
     container_name: "broker2"
     command: ["-id", "2"]
+    ports:
+      - "9093:9092"
 
   broker3:
     image: mq-broker
@@ -22,6 +26,8 @@ services:
     hostname: "broker3"
     container_name: "broker3"
     command: [ "-id", "3" ]
+    ports:
+      - "9094:9092"
 
   broker4:
     image: mq-broker
@@ -30,6 +36,8 @@ services:
     hostname: "broker4"
     container_name: "broker4"
     command: [ "-id", "4" ]
+    ports:
+      - "9095:9092"
 
   broker5:
     image: mq-broker
@@ -38,6 +46,8 @@ services:
     hostname: "broker5"
     container_name: "broker5"
     command: [ "-id", "5" ]
+    ports:
+      - "9096:9092"
 
 
 networks:

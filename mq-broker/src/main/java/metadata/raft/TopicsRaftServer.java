@@ -18,11 +18,16 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 import config.ClusterConfig;
-import partition.PartitionManager;
-import partition.Topic;
+import metadata.PartitionManager;
+import metadata.raft.request.processor.ConsumerOffsetUpdateRequestProcessor;
+import metadata.raft.request.processor.MessageAppendRequestProcessor;
+import metadata.raft.request.processor.MessageBatchReadRequestProcessor;
 import metadata.raft.request.TopicsClosure;
-import metadata.raft.request.TopicsRequest;
-import metadata.raft.request.TopicsRequestProcessor;
+// import TopicsRequest from org.example.mq-co
+import metadata.raft.request.processor.PartitionLeaderUpdateRequestProcessor;
+import metadata.raft.request.processor.TopicsRequestProcessor;
+import metadata.model.Topic;
+import request.metadata.TopicsRequest;
 
 /**
  * TopicsRaftServer sets up and manages the Raft server,
@@ -45,6 +50,10 @@ public class TopicsRaftServer {
   private Configuration initialConf;
   private List<PeerId> peers;
   private Map<String, PeerId> brokerIdToPeerId = new HashMap<>();
+  private ConsumerOffsetUpdateRequestProcessor consumerOffsetUpdateRequestProcessor;
+  private MessageBatchReadRequestProcessor messageBatchReadRequestProcessor;
+  private MessageAppendRequestProcessor messageAppendRequestProcessor;
+  private PartitionLeaderUpdateRequestProcessor partitionLeaderUpdateRequestProcessor;
 
   /**
    * Constructor that initializes the PartitionManager and sets up Raft.
@@ -62,6 +71,10 @@ public class TopicsRaftServer {
     this.partitionManager = new PartitionManager(selfPeerId, rpcServer);
     this.partitionManager.setTopicsRaftServer(this);
     this.stateMachine.setPartitionManager(partitionManager);
+    this.consumerOffsetUpdateRequestProcessor.setPartitionManager(partitionManager);
+    this.messageBatchReadRequestProcessor.setPartitionManager(partitionManager);
+    this.messageAppendRequestProcessor.setPartitionManager(partitionManager);
+    this.partitionLeaderUpdateRequestProcessor.setPartitionManager(partitionManager);
   }
 
   private void setSelfPeerId(ClusterConfig clusterConfig, String brokerId) {
@@ -94,6 +107,18 @@ public class TopicsRaftServer {
 
     // Register the TopicsRequestProcessor
     rpcServer.registerProcessor(new TopicsRequestProcessor(this));
+    consumerOffsetUpdateRequestProcessor = new ConsumerOffsetUpdateRequestProcessor();
+    rpcServer.registerProcessor(consumerOffsetUpdateRequestProcessor);
+
+    messageBatchReadRequestProcessor = new MessageBatchReadRequestProcessor();
+    rpcServer.registerProcessor(messageBatchReadRequestProcessor);
+
+    messageAppendRequestProcessor = new MessageAppendRequestProcessor();
+    rpcServer.registerProcessor(messageAppendRequestProcessor);
+
+    partitionLeaderUpdateRequestProcessor = new PartitionLeaderUpdateRequestProcessor(this);
+    rpcServer.registerProcessor(partitionLeaderUpdateRequestProcessor);
+
     // Initialize the state machine with a reference to PartitionManager
     this.stateMachine = new TopicsStateMachine(this.partitionManager, selfPeerId);
     // Configure Raft node options
@@ -151,7 +176,7 @@ public class TopicsRaftServer {
    *
    * @param updatedTopics The updated list of topics
    */
-  public void updateTopics(List<Topic> updatedTopics) {
+  public synchronized void updateTopics(List<Topic> updatedTopics) {
     for (Topic topic: updatedTopics){
       System.out.println("Updated topic: " + topic.toString());
     }
