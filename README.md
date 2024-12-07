@@ -51,7 +51,13 @@ List<String> messages = consumerClient.consume("topic1");
 ```
 ## Current Functionalities
 
-To-be-added
+1. Cluster RAFT Service
+   - Metadata Management
+   - Partition Assignment
+2. Partition RAFT Service
+   - Partition Replication
+   - Offset Management
+  
 
 ## Setup
 
