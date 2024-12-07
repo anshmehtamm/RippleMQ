@@ -9,24 +9,16 @@ Follow project status at https://github.com/users/anshmehtamm/projects/1
 
 ## About
 RippleMQ is a simplified version of a Distributed Messaging Queue inspired by Kafka, focusing on implementing its core functionalities. 
-
 This project is developed as part of CS 7610 – Foundations of Distributed Systems @ Northeastern
 
 ## Architecture
-RippleMQ employs a microservices architecture where services communicate asynchronously via message queues. 
-
-The system includes multiple components:
-- **Producers** that produce messages to queues.
-- **Consumers** that consume messages from queues.
-- **Brokers** that manage message queues with support for multi-topic logs.
-- **Partition Manager** that handles the distribution and assignment of message queues across brokers to ensure load balancing and fault tolerance.
 
 <img width="480" alt="image" src="https://github.com/user-attachments/assets/a1a9a567-a389-4088-86fd-858316857716">
 
 
 ## Modules
 
-1. **mq-broker**: Module for broker service. Deploy multiple broker services to form a cluster of RippleMQ.
+1. **mq-broker**: Module for broker service. Deploy multiple broker services to form a cluster of RippleMQ. 
 2. **mq-common**: Module for implementing producers and consumers, provides API for them.
 
 ### How to implement producer and consumer
