@@ -65,6 +65,7 @@ public class ConsumerOffsetUpdateRequestProcessor implements RpcProcessor<Consum
       response.setErrorMsg("Serialization failed: " + e.getMessage());
       rpcCtx.sendResponse(response);
     }
+    System.err.println("Updated offset for "+ request.getGroupId());
   }
 
   @Override

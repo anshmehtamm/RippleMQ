@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.util.List;
 
 import metadata.PartitionManager;
+import metadata.model.PartitionAssignment;
+import metadata.model.Topic;
 import request.partition.MessageAppendRequest;
 
 /**
