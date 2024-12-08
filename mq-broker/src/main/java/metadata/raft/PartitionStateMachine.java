@@ -3,6 +3,8 @@ package metadata.raft;
 import com.alipay.sofa.jraft.Iterator;
 import com.alipay.sofa.jraft.Status;
 import com.alipay.sofa.jraft.core.StateMachineAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -19,18 +21,18 @@ import request.partition.MessageBatchReadResponse;
  * including messages and consumer offsets.
  */
 public class PartitionStateMachine extends StateMachineAdapter {
+  private static final Logger logger = LoggerFactory.getLogger(PartitionStateMachine.class);
 
   private final List<String> messages = new ArrayList<>();
   private final Map<String, Long> consumerOffsets = new HashMap<>();
   private final String groupId;
-
   private PartitionManager partitionManager;
 
   public PartitionStateMachine(String groupId, PartitionManager partitionManager) {
     this.groupId = groupId;
     this.partitionManager = partitionManager;
+    logger.info("Initialized PartitionStateMachine for group: {}", groupId);
   }
-
 
   @Override
   public void onApply(Iterator iterator) {
@@ -42,30 +44,35 @@ public class PartitionStateMachine extends StateMachineAdapter {
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
           Object obj = ois.readObject();
           if (obj instanceof MessageAppendRequest) {
-            MessageAppendRequest request = (MessageAppendRequest) obj;
-            // Append messages to the partition
-            synchronized (messages) {
-              messages.addAll(request.getMessages());
-              System.err.println("message queue for group " + groupId + " size is now: "+ messages.size());
-            }
+            handleMessageAppendRequest((MessageAppendRequest) obj);
           } else if (obj instanceof ConsumerOffsetUpdateRequest) {
-            ConsumerOffsetUpdateRequest request = (ConsumerOffsetUpdateRequest) obj;
-            // Update consumer offset
-            synchronized (consumerOffsets) {
-              consumerOffsets.put(request.getConsumerId(), request.getOffset());
-            }
+            handleConsumerOffsetUpdateRequest((ConsumerOffsetUpdateRequest) obj);
           } else {
-            // Unknown request
-            System.err.println("Unknown request type in onApply: " + obj.getClass());
+            logger.warn("Unknown request type in onApply: {}", obj.getClass());
           }
         } catch (IOException | ClassNotFoundException e) {
-          e.printStackTrace();
+          logger.error("Error processing request in onApply", e);
         }
       }
       if (iterator.done() != null) {
         iterator.done().run(Status.OK());
       }
       iterator.next();
+    }
+  }
+
+  private void handleMessageAppendRequest(MessageAppendRequest request) {
+    synchronized (messages) {
+      messages.addAll(request.getMessages());
+      logger.debug("Message queue for group {} size is now: {}", groupId, messages.size());
+    }
+  }
+
+  private void handleConsumerOffsetUpdateRequest(ConsumerOffsetUpdateRequest request) {
+    synchronized (consumerOffsets) {
+      consumerOffsets.put(request.getConsumerId(), request.getOffset());
+      logger.debug("Updated offset for consumer {} to {} in group {}",
+              request.getConsumerId(), request.getOffset(), groupId);
     }
   }
 
@@ -79,8 +86,11 @@ public class PartitionStateMachine extends StateMachineAdapter {
     String consumerId = request.getConsumerId();
     int maxMessages = request.getMaxMessages();
     long offset;
+
     synchronized (consumerOffsets) {
       offset = consumerOffsets.getOrDefault(consumerId, 0L);
+      logger.debug("Reading messages for consumer {} from offset {} in group {}",
+              consumerId, offset, groupId);
     }
 
     List<String> messagesToReturn = new ArrayList<>();
@@ -89,8 +99,10 @@ public class PartitionStateMachine extends StateMachineAdapter {
       for (int i = (int) offset; i < endIndex; i++) {
         messagesToReturn.add(messages.get(i));
       }
+      logger.debug("Retrieved {} messages for consumer {} in group {}",
+              messagesToReturn.size(), consumerId, groupId);
     }
-    // Return the messages and the current offset
+
     MessageBatchReadResponse response = new MessageBatchReadResponse();
     response.setMessages(messagesToReturn);
     response.setOffset(offset);
@@ -99,14 +111,17 @@ public class PartitionStateMachine extends StateMachineAdapter {
 
   public long getConsumerOffset(String consumerId) {
     synchronized (consumerOffsets) {
-      return consumerOffsets.getOrDefault(consumerId, 0L);
+      long offset = consumerOffsets.getOrDefault(consumerId, 0L);
+      logger.trace("Retrieved offset {} for consumer {} in group {}",
+              offset, consumerId, groupId);
+      return offset;
     }
   }
 
   @Override
   public void onLeaderStart(long term) {
     super.onLeaderStart(term);
-    System.out.println("PartitionStateMachine: Leader started for partition " + groupId);
+    logger.info("Leader started for partition {} with term {}", groupId, term);
     partitionManager.handlePartitionLeaderChange(groupId);
   }
 }

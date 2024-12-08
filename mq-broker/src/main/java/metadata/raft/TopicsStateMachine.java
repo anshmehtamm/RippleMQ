@@ -48,6 +48,9 @@ public class TopicsStateMachine extends StateMachineAdapter {
    */
   public synchronized void setTopics(List<Topic> newTopics) {
     this.topics = newTopics;
+    for (Topic topic: newTopics){
+      System.out.println("Updated topics: " + topic.toString());
+    }
     // Notify PartitionManager about topic list change
     partitionManager.handleTopicListChange(newTopics);
   }

@@ -38,6 +38,7 @@ public class MessageBatchReadRequestProcessor implements RpcProcessor<MessageBat
     // only if leader, otherwise redirect to leader
     MessageBatchReadResponse response = partitionRaftServer.getStateMachine().handleBatchRead(request);
     rpcCtx.sendResponse(response);
+    System.err.println("Sent "+ response.getMessages().size() +" messages from "+request.getGroupId());
   }
 
   @Override

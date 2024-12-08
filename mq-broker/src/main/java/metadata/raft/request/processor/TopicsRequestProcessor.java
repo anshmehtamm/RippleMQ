@@ -35,7 +35,6 @@ public class TopicsRequestProcessor implements RpcProcessor<TopicsRequest> {
   @Override
   public void handleRequest(RpcContext rpcCtx, TopicsRequest request) {
     if (!request.isWrite()) {
-      System.err.println("Read operation");
       // Handle read operation directly without Raft
       rpcCtx.sendResponse(topicsRaftServer.getStateMachine().getTopics());
     } else {
@@ -67,6 +66,7 @@ public class TopicsRequestProcessor implements RpcProcessor<TopicsRequest> {
         rpcCtx.sendResponse("Serialization failed: " + e.getMessage());
       }
     }
+    System.err.println("Sent metadata response to client");
   }
 
   @Override

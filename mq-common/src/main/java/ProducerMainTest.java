@@ -12,30 +12,24 @@ public class ProducerMainTest {
             Arrays.asList("localhost:9092", "localhost:9093", "localhost:9094",
                     "localhost:9095", "localhost:9096"));
 
-    // produce every second 10 message to topic1 / topic2
-
+    // produce message in new thread
     new Thread(() -> {
-      int i = 0;
-      while (i<10) {
-        try {
-          Thread.sleep(1000);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        // random 0 or 1
-        int topic = (int) (Math.random() * 2);
-        if (topic == 0) {
-          producerClient.produce("topic1", "test-message");
-        } else {
-          producerClient.produce("topic2", "test-message");
-        }
-        i++;
+      try {
+        produceMessages(producerClient);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
       }
-
     }).start();
 
 
-    keepAlive();
+  }
+
+  private static void produceMessages(ProducerClient producerClient) throws InterruptedException {
+    int totalMessages = 2;
+    while (totalMessages-- > 0) {
+      producerClient.produce("topic1", "test-message");
+      Thread.sleep(1000);
+    }
   }
 
   private static void keepAlive() {

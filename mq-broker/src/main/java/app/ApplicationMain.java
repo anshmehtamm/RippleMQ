@@ -1,63 +1,61 @@
 package app;
 
 import java.io.IOException;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import broker.BrokerServer;
 import config.ClusterConfigManager;
 
 public class ApplicationMain {
+  private static final Logger logger = LoggerFactory.getLogger(ApplicationMain.class);
 
   public static void main(String[] args) throws IOException {
-    /**
-     * Accepted arguments
-     *
-     * - id: The id of the broker
-     * - config: The path to the cluster configuration file
-     * - host: The hostname of the broker
-     * - port: The port of the broker
-     * - debug level: The debug level of the broker
-     *
-     * Default values:
-     * - id: identified from the configuration file
-     * - config: mq-broker/config/cluster_config.yaml
-     * - host: identified from the configuration file
-     * - port: identified from the configuration file
-     */
     setSystemProperties();
 
     if (args.length < 1) {
-      System.err.println("Usage: java -jar broker-server.jar <brokerId>");
+      logger.error("Missing required argument: brokerId");
       System.exit(1);
     }
 
     String brokerId = args[1];
+    logger.info("Starting broker with ID: {}", brokerId);
 
     // Load cluster configuration
     ClusterConfigManager clusterConfigManager = ClusterConfigManager.getInstance();
-    clusterConfigManager.loadClusterConfig();
+    try {
+      clusterConfigManager.loadClusterConfig();
+      logger.info("Successfully loaded cluster configuration");
+    } catch (Exception e) {
+      logger.error("Failed to load cluster configuration", e);
+      System.exit(1);
+    }
 
     // Instantiate BrokerServer
     BrokerServer brokerServer = new BrokerServer(clusterConfigManager.getClusterConfig(), brokerId);
 
     // Start BrokerServer
-    brokerServer.start();
+    try {
+      brokerServer.start();
+      logger.info("Broker server started successfully");
+    } catch (Exception e) {
+      logger.error("Failed to start broker server", e);
+      System.exit(1);
+    }
 
     // Add shutdown hook to gracefully stop the server
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
       try {
+        logger.info("Shutting down broker server...");
         brokerServer.stop();
-        System.out.println("Broker server stopped.");
+        logger.info("Broker server stopped successfully");
       } catch (Exception e) {
-        e.printStackTrace();
+        logger.error("Error during broker server shutdown", e);
       }
     }));
-
-    System.out.println("Broker server started successfully.");
   }
 
   private static void setSystemProperties() {
-    // Implement any required system property settings here
-    // Example:
-    // System.setProperty("logback.configurationFile", "path/to/logback.xml");
+    // You can add any system property settings here if needed
+    logger.debug("Setting system properties");
   }
 }

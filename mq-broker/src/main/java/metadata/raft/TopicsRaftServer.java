@@ -177,9 +177,7 @@ public class TopicsRaftServer {
    * @param updatedTopics The updated list of topics
    */
   public synchronized void updateTopics(List<Topic> updatedTopics) {
-    for (Topic topic: updatedTopics){
-      System.out.println("Updated topic: " + topic.toString());
-    }
+
     // Create a TopicsRequest with the updated topics
     TopicsRequest request = new TopicsRequest(updatedTopics);
     // Apply the request to the Raft node

@@ -24,7 +24,7 @@ public class MessageAppendRequestProcessor implements RpcProcessor<MessageAppend
 
   @Override
   public void handleRequest(RpcContext rpcCtx, MessageAppendRequest request) {
-    System.err.println("Received message append request");
+
     PartitionRaftServer partitionRaftServer = partitionManager.getPartitionRaftServer(request.getGroupId());
     if (!partitionRaftServer.getNode().isLeader()) {
       // forward to leader

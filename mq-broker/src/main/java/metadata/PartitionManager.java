@@ -3,92 +3,80 @@ package metadata;
 import com.alipay.sofa.jraft.Node;
 import com.alipay.sofa.jraft.entity.PeerId;
 import com.alipay.sofa.jraft.rpc.RpcServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 
 import broker.BrokerRpcClient;
 import config.ClusterConfigManager;
-
 import metadata.model.PartitionAssignment;
 import metadata.model.Topic;
 import metadata.raft.PartitionRaftServer;
 import metadata.raft.TopicsRaftServer;
 
-/**
- * PartitionManager handles Raft events such as leader changes,
- * membership changes, and topic list updates.
- */
 public class PartitionManager {
+  private static final Logger logger = LoggerFactory.getLogger(PartitionManager.class);
 
   private TopicsRaftServer topicsRaftServer;
-  private List<PeerId> previousMembers = new ArrayList<>();
-  private PeerId selfPeerId;
-
-  private RpcServer rpcServer;
-
-  // Map of partition group IDs to PartitionRaftServer instances
-  private Map<String, PartitionRaftServer> activePartitions = new HashMap<>();
-  private int counter = 0;
+  private final List<PeerId> previousMembers = new ArrayList<>();
+  private final PeerId selfPeerId;
+  private final RpcServer rpcServer;
+  private final Map<String, PartitionRaftServer> activePartitions = new HashMap<>();
 
   public PartitionManager(PeerId selfPeerId, RpcServer rpcServer) {
     this.selfPeerId = selfPeerId;
     this.rpcServer = rpcServer;
+    logger.info("Initialized PartitionManager for peer: {}", selfPeerId);
   }
 
   public void setTopicsRaftServer(TopicsRaftServer topicsRaftServer) {
     this.topicsRaftServer = topicsRaftServer;
+    logger.debug("Set TopicsRaftServer instance");
   }
 
-  /**
-   * Handles leader change events.
-   *
-   * @param newLeader The new leader's PeerId. Null if there's no leader.
-   */
   public void handleLeaderChange(PeerId newLeader) {
-    System.err.println("PartitionManager: Handling leader change event.");
+    logger.info("Handling leader change event. New leader: {}", newLeader);
+
     if (newLeader != null && newLeader.equals(topicsRaftServer.getSelfPeerId())) {
-      // We are the leader
-      System.err.println("PartitionManager: New leader elected - " + newLeader);
-      // Get current topics
+      logger.info("This node is now the leader");
       List<Topic> topics = topicsRaftServer.getStateMachine().getTopics();
+
       if (topics.isEmpty()) {
+        logger.debug("No topics found in state machine, loading from config");
         ClusterConfigManager configManager = ClusterConfigManager.getInstance();
         topics = configManager.getClusterConfig().getTopics();
       }
-      // Get current cluster members
+
       List<PeerId> peers = topicsRaftServer.getCurrentPeers();
-      // Assign partitions
       if (peers.equals(previousMembers)) {
-        System.err.println("PartitionManager: Cluster membership unchanged. Skipping partition reassignment.");
+        logger.debug("Cluster membership unchanged, skipping partition reassignment");
         return;
       }
-      this.previousMembers = new ArrayList<>(peers);
+
+      logger.info("Reassigning partitions due to membership change");
+      previousMembers.clear();
+      previousMembers.addAll(peers);
+
       PartitionAssigner partitionAssigner = new PartitionAssigner();
       List<Topic> updatedTopics = partitionAssigner.assignPartitions(topics, peers);
-      // Update topics via Raft
+
+      logger.debug("Updating topics with new partition assignments");
       topicsRaftServer.updateTopics(updatedTopics);
     } else {
-      // We are not the leader
-      System.err.println("PartitionManager: Not the leader.");
+      logger.info("This node is not the leader");
     }
   }
 
-  /**
-   * Handles membership change events.
-   *
-   * @param currentMembers The current list of cluster members.
-   */
   public void handleMembershipChange(List<PeerId> currentMembers) {
-    // Check if we are the leader
+    logger.info("Handling membership change event");
     Node node = topicsRaftServer.getNode();
+
     if (node != null && node.isLeader() && !currentMembers.equals(previousMembers)) {
-      // Determine if a broker has died or a new broker has joined
+      logger.info("Processing membership change as leader");
+
       if (previousMembers != null) {
-        System.err.println("PartitionManager: Cluster membership changed. Current members:");
-        for (PeerId member : currentMembers) {
-          System.err.println("\t" + member);
-        }
         Set<PeerId> previousSet = new HashSet<>(previousMembers);
         Set<PeerId> currentSet = new HashSet<>(currentMembers);
 
@@ -99,52 +87,53 @@ public class PartitionManager {
         removed.removeAll(currentSet);
 
         if (!added.isEmpty() || !removed.isEmpty()) {
-          System.err.println("PartitionManager: Membership change detected.");
-          // Reassign partitions
+          logger.info("Membership changes detected - Added: {}, Removed: {}", added, removed);
+
           List<Topic> topics = topicsRaftServer.getStateMachine().getTopics();
           if (topics.isEmpty()) {
+            logger.debug("Loading topics from cluster config");
             ClusterConfigManager configManager = ClusterConfigManager.getInstance();
             topics = configManager.getClusterConfig().getTopics();
           }
+
           PartitionAssigner partitionAssigner = new PartitionAssigner();
           List<Topic> updatedTopics = partitionAssigner.assignPartitions(topics, currentMembers);
-          // Update topics via Raft
+
+          logger.debug("Updating topics with new partition assignments");
           topicsRaftServer.updateTopics(updatedTopics);
         }
       }
-      previousMembers = new ArrayList<>(currentMembers);
-    } else {
-      // We are not the leader or membership hasn't changed
+      previousMembers.clear();
+      previousMembers.addAll(currentMembers);
     }
   }
 
-  /**
-   * Handles topic list change events.
-   *
-   * @param newTopics The updated list of topics.
-   */
   public void handleTopicListChange(List<Topic> newTopics) {
-    System.err.println("PartitionManager: Topic list updated. Evaluating partitions to manage.");
+    logger.info("Processing topic list change");
 
-    // Determine the partitions this node should handle based on the partition assignments
     Set<String> partitionsToHandle = new HashSet<>();
     Map<String, List<PeerId>> partitionPeerMap = new HashMap<>();
 
+    // Analyze new topic assignments
     for (Topic topic : newTopics) {
       if (topic.getPartitionAssignments() != null) {
         for (PartitionAssignment assignment : topic.getPartitionAssignments()) {
           String partitionGroupId = topic.getName() + "-" + assignment.getPartitionId();
           List<PeerId> partitionPeers = new ArrayList<>();
+
           for (String brokerPeerIdStr : assignment.getBrokerPeerIds()) {
             PeerId brokerPeerId = new PeerId();
             brokerPeerId.parse(brokerPeerIdStr);
             partitionPeers.add(brokerPeerId);
           }
+
           partitionPeerMap.put(partitionGroupId, partitionPeers);
+
           // Check if this node is assigned to this partition
           for (PeerId peer : partitionPeers) {
             if (peer.getEndpoint().equals(selfPeerId.getEndpoint())) {
               partitionsToHandle.add(partitionGroupId);
+              logger.debug("This node will handle partition: {}", partitionGroupId);
               break;
             }
           }
@@ -152,114 +141,104 @@ public class PartitionManager {
       }
     }
 
-
-    // Stop PartitionRaftServers that are no longer needed
+    // Stop unnecessary partitions
     Set<String> partitionsToStop = new HashSet<>(activePartitions.keySet());
     partitionsToStop.removeAll(partitionsToHandle);
+
     for (String partitionGroupId : partitionsToStop) {
-      // Stop PartitionRaftServer
+      logger.info("Stopping partition: {}", partitionGroupId);
       stopPartition(partitionGroupId);
     }
 
-    // Start new PartitionRaftServers for new partitions
+    // Start new partitions
     for (String partitionGroupId : partitionsToHandle) {
       if (!activePartitions.containsKey(partitionGroupId)) {
-        // Start PartitionRaftServer
-        System.err.println("Starting PartitionRaftServer for partition " + partitionGroupId);
+        logger.info("Starting new partition: {}", partitionGroupId);
         try {
           startPartition(partitionGroupId, partitionPeerMap.get(partitionGroupId));
         } catch (IOException e) {
-          e.printStackTrace();
-          System.err.println("Failed to start PartitionRaftServer for partition " + partitionGroupId);
+          logger.error("Failed to start partition: {}", partitionGroupId, e);
         }
       }
     }
-
   }
 
-  /**
-   * Starts a PartitionRaftServer for the given partition.
-   *
-   * @param partitionGroupId The group ID of the partition (format: topic_name:partitionId)
-   * @param partitionPeers   The list of PeerIds in this partition's Raft group
-   * @throws IOException If an I/O error occurs during setup
-   */
   private void startPartition(String partitionGroupId, List<PeerId> partitionPeers) throws IOException {
+    logger.info("Starting partition {} with peers: {}", partitionGroupId, partitionPeers);
 
-    // Create and start PartitionRaftServer
+    PartitionRaftServer partitionRaftServer = new PartitionRaftServer(
+            partitionGroupId, selfPeerId, partitionPeers, this.rpcServer, this);
 
-    PartitionRaftServer partitionRaftServer = new PartitionRaftServer(partitionGroupId, selfPeerId, partitionPeers,
-            this.rpcServer, this);
-    // Add to active partitions
     activePartitions.put(partitionGroupId, partitionRaftServer);
     partitionRaftServer.start();
-    System.err.println("Started PartitionRaftServer for partition " + partitionGroupId);
+
+    logger.info("Successfully started partition: {}", partitionGroupId);
   }
 
-  /**
-   * Stops the PartitionRaftServer for the given partition.
-   *
-   * @param partitionGroupId The group ID of the partition
-   */
   private void stopPartition(String partitionGroupId) {
+    logger.info("Stopping partition: {}", partitionGroupId);
+
     PartitionRaftServer partitionRaftServer = activePartitions.remove(partitionGroupId);
     if (partitionRaftServer != null) {
-      // Stop the PartitionRaftServer
       partitionRaftServer.shutdown();
-      System.err.println("Stopped PartitionRaftServer for partition " + partitionGroupId);
+      logger.info("Successfully stopped partition: {}", partitionGroupId);
     }
   }
 
-  /**
-   * Shuts down all active PartitionRaftServers.
-   */
   public void shutdown() {
+    logger.info("Shutting down PartitionManager");
     for (String partitionGroupId : new HashSet<>(activePartitions.keySet())) {
       stopPartition(partitionGroupId);
     }
+    logger.info("PartitionManager shutdown complete");
   }
-
 
   public PartitionRaftServer getPartitionRaftServer(String partitionGroupId) {
     return activePartitions.get(partitionGroupId);
   }
 
   public synchronized boolean handlePartitionLeaderChange(String groupId, String leaderAddress, boolean redirect) {
-      // am i the cluster leader
-      Node node = topicsRaftServer.getNode();
-      if (node != null && node.isLeader()) {
-        // update topics via raft
-        makeLeaderForPartition(groupId, leaderAddress);
-      }else if (!redirect){
-        // redirect the request to the leader
-        redirectPartitionLeaderChangeToTopicLeader(groupId, leaderAddress);
-      } else{
-        return false;
-      }
+    logger.info("Handling partition leader change for group: {}, leader: {}, redirect: {}",
+            groupId, leaderAddress, redirect);
+
+    Node node = topicsRaftServer.getNode();
+    if (node != null && node.isLeader()) {
+      logger.debug("Processing leader change as cluster leader");
+      makeLeaderForPartition(groupId, leaderAddress);
+      return true;
+    } else if (!redirect) {
+      logger.debug("Redirecting leader change request to cluster leader");
+      redirectPartitionLeaderChangeToTopicLeader(groupId, leaderAddress);
       return true;
     }
 
+    logger.debug("Cannot process leader change request");
+    return false;
+  }
 
   private void redirectPartitionLeaderChangeToTopicLeader(String groupId, String leaderAddress) {
-    // use rpc client to redirect the request to the leader
-    // run on separate thread,  retry for 3 times, with interval of 3 seconds
+    logger.debug("Redirecting partition leader change request for group: {}", groupId);
+
     new Thread(() -> {
       int retries = 0;
       while (retries < 3) {
         try {
           Node node = topicsRaftServer.getNode();
           PeerId leader = node.getLeaderId();
-          BrokerRpcClient.getInstance(selfPeerId).updatePartitionLeader
-                  (leader.getEndpoint(), groupId, leaderAddress);
+          logger.debug("Attempting to update partition leader (attempt {})", retries + 1);
+
+          BrokerRpcClient.getInstance(selfPeerId).updatePartitionLeader(
+                  leader.getEndpoint(), groupId, leaderAddress);
+
+          logger.info("Successfully redirected leader change request");
           break;
         } catch (RuntimeException e) {
-          System.err.println("PartitionManager: Failed to update leader for partition " + groupId+" as " +
-                  e.getMessage());
+          logger.warn("Failed to redirect leader change request (attempt {})", retries + 1, e);
           retries++;
           try {
             Thread.sleep(3000);
           } catch (InterruptedException ex) {
-            ex.printStackTrace();
+            logger.error("Sleep interrupted during retry", ex);
           }
         }
       }
@@ -268,18 +247,20 @@ public class PartitionManager {
 
   public synchronized void handlePartitionLeaderChange(String groupId) {
     String leaderAddress = selfPeerId.toString();
+    logger.info("Handling partition leader change for group: {} with leader: {}",
+            groupId, leaderAddress);
     handlePartitionLeaderChange(groupId, leaderAddress, false);
-}
+  }
 
   private synchronized void makeLeaderForPartition(String groupId, String leaderAddress) {
     List<Topic> topics = topicsRaftServer.getStateMachine().getTopics();
     String topicName = groupId.split("-")[0];
     int partitionId = Integer.parseInt(groupId.split("-")[1]);
     boolean updated = false;
-    for (Topic topic: topics){
-      if (topic.getName().equals(topicName)){
-        for (PartitionAssignment assignment: topic.getPartitionAssignments()){
-          if (assignment.getPartitionId() == partitionId){
+    for (Topic topic : topics) {
+      if (topic.getName().equals(topicName)) {
+        for (PartitionAssignment assignment : topic.getPartitionAssignments()) {
+          if (assignment.getPartitionId() == partitionId) {
             assignment.setLeader(leaderAddress);
             topicsRaftServer.updateTopics(topics);
             updated = true;
@@ -288,9 +269,9 @@ public class PartitionManager {
         }
       }
     }
-    if (!updated){
+    if (!updated) {
       System.err.println("PartitionManager: Failed to update leader for partition " + groupId);
     }
   }
-  }
 
+}
