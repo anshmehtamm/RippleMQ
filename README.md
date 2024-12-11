@@ -1,12 +1,5 @@
 # RippleMQ
 
-## Notes
-
-In development by [Shail Shah
-](https://github.com/shailshah76) and [Ansh Mehta](https://anshmehtamm.github.io/personal-website/)
-
-Follow project status at https://github.com/users/anshmehtamm/projects/1
-
 ## About
 RippleMQ is a simplified version of a Distributed Messaging Queue inspired by Kafka, focusing on implementing its core functionalities. 
 This project is developed as part of CS 7610 – Foundations of Distributed Systems @ Northeastern
