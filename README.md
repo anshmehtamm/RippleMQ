@@ -54,7 +54,26 @@ List<String> messages = consumerClient.consume("topic1");
 
 ## Setup
 
-To-be-added
+1. Clone the Repository
+
+Clone the project repository to your local machine:
+
+```
+git clone <repository-url>
+cd RippleMQ
+```
+2. Build the Docker Image
+
+```agsl
+docker build -t mq-broker -f mq-broker/Dockerfile .
+```
+
+3. Run the docker compose in the broker directory
+
+```agsl
+cd mq-broker
+docker compose up
+```
 
 ## Contributing
 
