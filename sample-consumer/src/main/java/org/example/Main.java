@@ -1,26 +1,43 @@
 package org.example;
 
 import java.util.Arrays;
+import java.util.List;
 
-import client.ProducerClient;
-import client.ProducerClientImpl;
+import client.ConsumerClient;
+import client.ConsumerClientImpl;
 
 public class Main {
 
     public static void main(String[] args) {
-
-        // Initialize the producer client with a list of broker addresses
-        ProducerClient producerClient = new ProducerClientImpl(
-                "client1",
+        // Initialize the consumer client with a list of broker addresses
+        ConsumerClient consumerClient = new ConsumerClientImpl("client2",
                 Arrays.asList("localhost:9092", "localhost:9093", "localhost:9094",
                         "localhost:9095", "localhost:9096"));
 
-        // Produce messages in a separate thread
+        // Start a thread to consume messages every second
         new Thread(() -> {
-            try {
-                produceMessages(producerClient);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            while (true) {
+                try {
+                    // Wait for 1 second between message consumptions
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                // Randomly select topic1 or topic2
+                int topic = (int) (Math.random() * 2);
+                List<String> messages = null;
+
+                if (topic == 0) {
+                    messages = consumerClient.consume("topic1");
+                } else {
+                    messages = consumerClient.consume("topic2");
+                }
+
+                // Print consumed messages
+                if (messages != null) {
+                    messages.forEach(System.out::println);
+                }
             }
         }).start();
 
@@ -28,17 +45,8 @@ public class Main {
         keepAlive();
     }
 
-    private static void produceMessages(ProducerClient producerClient) throws InterruptedException {
-        int totalMessages = 2;
-        while (totalMessages-- > 0) {
-            producerClient.produce("topic1", "test-message");
-            System.out.println("Message sent to topic1: test-message");
-            Thread.sleep(1000);
-        }
-    }
-
     private static void keepAlive() {
-        // Keep alive
+        // Prevent the application from exiting
         while (true) {
             try {
                 Thread.sleep(1000);
