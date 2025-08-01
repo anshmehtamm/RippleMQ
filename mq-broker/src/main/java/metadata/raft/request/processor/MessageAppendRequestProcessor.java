@@ -15,6 +15,7 @@ import metadata.raft.PartitionRaftServer;
 import metadata.raft.request.PartitionClosure;
 import request.partition.MessageAppendRequest;
 import request.partition.MessageAppendResponse;
+import request.ErrorCode;
 
 public class MessageAppendRequestProcessor implements RpcProcessor<MessageAppendRequest> {
 
@@ -27,8 +28,12 @@ public class MessageAppendRequestProcessor implements RpcProcessor<MessageAppend
 
     PartitionRaftServer partitionRaftServer = partitionManager.getPartitionRaftServer(request.getGroupId());
     if (!partitionRaftServer.getNode().isLeader()) {
-      // forward to leader
-      rpcCtx.sendResponse("Not leader");
+      MessageAppendResponse resp = new MessageAppendResponse();
+      resp.setSuccess(false);
+      resp.setErrorCode(ErrorCode.NOT_LEADER.getCode());
+      resp.setErrorMsg(ErrorCode.NOT_LEADER.getDefaultMessage());
+      rpcCtx.sendResponse(resp);
+      return;
     }
     handleMessageAppendRequest(rpcCtx, (MessageAppendRequest) request, partitionRaftServer);
   }
@@ -40,8 +45,10 @@ public class MessageAppendRequestProcessor implements RpcProcessor<MessageAppend
       MessageAppendResponse response = new MessageAppendResponse();
       if (status.isOk()) {
         response.setSuccess(true);
+        response.setErrorCode(ErrorCode.SUCCESS.getCode());
       } else {
         response.setSuccess(false);
+        response.setErrorCode(ErrorCode.INTERNAL_ERROR.getCode());
         response.setErrorMsg(status.getErrorMsg());
       }
       rpcCtx.sendResponse(response);
@@ -61,6 +68,7 @@ public class MessageAppendRequestProcessor implements RpcProcessor<MessageAppend
       e.printStackTrace();
       MessageAppendResponse response = new MessageAppendResponse();
       response.setSuccess(false);
+      response.setErrorCode(ErrorCode.INTERNAL_ERROR.getCode());
       response.setErrorMsg("Serialization failed: " + e.getMessage());
       rpcCtx.sendResponse(response);
     }

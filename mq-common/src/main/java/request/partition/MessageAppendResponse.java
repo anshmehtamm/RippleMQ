@@ -10,6 +10,7 @@ public class MessageAppendResponse implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private boolean success;
+  private int errorCode;
   private String errorMsg;
 
   public MessageAppendResponse() {
@@ -30,5 +31,13 @@ public class MessageAppendResponse implements Serializable {
 
   public void setErrorMsg(String errorMsg) {
     this.errorMsg = errorMsg;
+  }
+
+  public int getErrorCode() {
+    return errorCode;
+  }
+
+  public void setErrorCode(int errorCode) {
+    this.errorCode = errorCode;
   }
 }

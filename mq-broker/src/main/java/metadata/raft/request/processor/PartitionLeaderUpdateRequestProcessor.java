@@ -7,6 +7,8 @@ import metadata.PartitionManager;
 import metadata.raft.PartitionRaftServer;
 import metadata.raft.TopicsRaftServer;
 import request.partition.PartitionLeaderUpdateRequest;
+import request.partition.PartitionLeaderUpdateResponse;
+import request.ErrorCode;
 
 public class PartitionLeaderUpdateRequestProcessor implements
         RpcProcessor<PartitionLeaderUpdateRequest> {
@@ -23,8 +25,12 @@ public class PartitionLeaderUpdateRequestProcessor implements
   public void handleRequest(RpcContext rpcCtx, PartitionLeaderUpdateRequest request) {
     // Get the partition Raft server
     if (!topicsRaftServer.getNode().isLeader()){
-      // throw error
-      rpcCtx.sendResponse("Not leader");
+      PartitionLeaderUpdateResponse resp = new PartitionLeaderUpdateResponse();
+      resp.setSuccess(false);
+      resp.setErrorCode(ErrorCode.NOT_LEADER.getCode());
+      resp.setErrorMsg(ErrorCode.NOT_LEADER.getDefaultMessage());
+      rpcCtx.sendResponse(resp);
+      return;
     }
     handlePartitionLeaderUpdateRequest(rpcCtx, request);
   }
@@ -33,11 +39,16 @@ public class PartitionLeaderUpdateRequestProcessor implements
                                                   PartitionLeaderUpdateRequest request) {
     boolean success = partitionManager.handlePartitionLeaderChange(request.getGroupId(), request.getLeaderAddress(),
             true);
+    PartitionLeaderUpdateResponse resp = new PartitionLeaderUpdateResponse();
     if (!success) {
-      rpcCtx.sendResponse("Error");
-      return;
+      resp.setSuccess(false);
+      resp.setErrorCode(ErrorCode.INTERNAL_ERROR.getCode());
+      resp.setErrorMsg("Failed to update leader");
+    } else {
+      resp.setSuccess(true);
+      resp.setErrorCode(ErrorCode.SUCCESS.getCode());
     }
-    rpcCtx.sendResponse("Success");
+    rpcCtx.sendResponse(resp);
   }
 
   @Override

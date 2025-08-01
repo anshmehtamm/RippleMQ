@@ -9,7 +9,6 @@ import com.alipay.sofa.jraft.util.Endpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import metadata.model.Topic;
@@ -68,24 +67,15 @@ public class MetadataClient {
     logger.debug("Sending topics request to endpoint: {}", endpoint);
     Object response = rpcClient.invokeSync(endpoint, request, 3000);
 
-    if (response instanceof List<?>) {
-      List<?> responseList = (List<?>) response;
-      List<Topic> topicList = new ArrayList<>();
-
-      for (Object obj : responseList) {
-        if (!(obj instanceof Topic)) {
-          logger.error("Invalid response type received: {}", obj.getClass());
-          throw new RuntimeException("Invalid response type");
-        } else {
-          topicList.add((Topic) obj);
-        }
+    if (response instanceof TopicsResponse) {
+      TopicsResponse topicsResponse = (TopicsResponse) response;
+      if (topicsResponse.isSuccess()) {
+        return topicsResponse.getTopics();
+      } else {
+        String err = topicsResponse.getErrorMsg();
+        logger.error("Error response received from broker: {}", err);
+        throw new RuntimeException(err != null ? err : "Unknown error");
       }
-
-      logger.debug("Received {} topics from broker", topicList.size());
-      return topicList;
-    } else if (response instanceof String) {
-      logger.error("Error response received from broker: {}", response);
-      throw new RuntimeException((String) response);
     } else {
       logger.error("Unexpected response type: {}",
               response != null ? response.getClass() : "null");
