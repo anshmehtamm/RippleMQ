@@ -16,6 +16,7 @@ import request.partition.MessageAppendRequest;
 import request.partition.MessageAppendResponse;
 import request.partition.MessageBatchReadRequest;
 import request.partition.MessageBatchReadResponse;
+import request.ErrorCode;
 
 public class MessageBatchReadRequestProcessor implements RpcProcessor<MessageBatchReadRequest> {
 
@@ -27,8 +28,12 @@ public class MessageBatchReadRequestProcessor implements RpcProcessor<MessageBat
   public void handleRequest(RpcContext rpcCtx, MessageBatchReadRequest request) {
     PartitionRaftServer partitionRaftServer = partitionManager.getPartitionRaftServer(request.getGroupId());
     if (!partitionRaftServer.getNode().isLeader()) {
-      // throw error
-      rpcCtx.sendResponse("Not leader");
+      MessageBatchReadResponse resp = new MessageBatchReadResponse();
+      resp.setSuccess(false);
+      resp.setErrorCode(ErrorCode.NOT_LEADER.getCode());
+      resp.setErrorMsg(ErrorCode.NOT_LEADER.getDefaultMessage());
+      rpcCtx.sendResponse(resp);
+      return;
     }
     handleMessageBatchReadRequest(rpcCtx, (MessageBatchReadRequest) request, partitionRaftServer);
   }
@@ -37,6 +42,8 @@ public class MessageBatchReadRequestProcessor implements RpcProcessor<MessageBat
     // Reads can be handled directly
     // only if leader, otherwise redirect to leader
     MessageBatchReadResponse response = partitionRaftServer.getStateMachine().handleBatchRead(request);
+    response.setSuccess(true);
+    response.setErrorCode(ErrorCode.SUCCESS.getCode());
     rpcCtx.sendResponse(response);
     System.err.println("Sent "+ response.getMessages().size() +" messages from "+request.getGroupId());
   }

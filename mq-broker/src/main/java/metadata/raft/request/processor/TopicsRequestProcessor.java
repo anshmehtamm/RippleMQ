@@ -14,6 +14,8 @@ import java.util.concurrent.Executor;
 import metadata.raft.TopicsRaftServer;
 import metadata.raft.request.TopicsClosure;
 import request.metadata.TopicsRequest;
+import request.metadata.TopicsResponse;
+import request.ErrorCode;
 
 /**
  * TopicsRequestProcessor handles incoming Raft requests,
@@ -36,18 +38,27 @@ public class TopicsRequestProcessor implements RpcProcessor<TopicsRequest> {
   public void handleRequest(RpcContext rpcCtx, TopicsRequest request) {
     if (!request.isWrite()) {
       // Handle read operation directly without Raft
-      rpcCtx.sendResponse(topicsRaftServer.getStateMachine().getTopics());
+      TopicsResponse resp = new TopicsResponse();
+      resp.setSuccess(true);
+      resp.setErrorCode(ErrorCode.SUCCESS.getCode());
+      resp.setTopics(topicsRaftServer.getStateMachine().getTopics());
+      rpcCtx.sendResponse(resp);
     } else {
       // Handle write operations with Raft
       // Create a closure to handle the response after operation
       TopicsClosure done = new TopicsClosure(topicsRaftServer, request, new Closure() {
         @Override
         public void run(com.alipay.sofa.jraft.Status status) {
+          TopicsResponse resp = new TopicsResponse();
           if (status.isOk()) {
-            rpcCtx.sendResponse("Success");
+            resp.setSuccess(true);
+            resp.setErrorCode(ErrorCode.SUCCESS.getCode());
           } else {
-            rpcCtx.sendResponse("Error: " + status.getErrorMsg());
+            resp.setSuccess(false);
+            resp.setErrorCode(ErrorCode.INTERNAL_ERROR.getCode());
+            resp.setErrorMsg(status.getErrorMsg());
           }
+          rpcCtx.sendResponse(resp);
         }
       });
 
@@ -63,7 +74,11 @@ public class TopicsRequestProcessor implements RpcProcessor<TopicsRequest> {
         topicsRaftServer.getNode().apply(new Task(ByteBuffer.wrap(data), done));
       } catch (IOException e) {
         e.printStackTrace();
-        rpcCtx.sendResponse("Serialization failed: " + e.getMessage());
+        TopicsResponse resp = new TopicsResponse();
+        resp.setSuccess(false);
+        resp.setErrorCode(ErrorCode.INTERNAL_ERROR.getCode());
+        resp.setErrorMsg("Serialization failed: " + e.getMessage());
+        rpcCtx.sendResponse(resp);
       }
     }
     System.err.println("Sent metadata response to client");

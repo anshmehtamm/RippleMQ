@@ -48,9 +48,13 @@ public class PartitionClient {
         if (messageAppendResponse.isSuccess()) {
           logger.info("Successfully sent message to topic: {}, partition: {}", topic, partitionId);
         } else {
-          logger.error("Failed to send message: {}", messageAppendResponse.getErrorMsg());
-          throw new RuntimeException("Failed to send message: " + messageAppendResponse.getErrorMsg());
+          String err = messageAppendResponse.getErrorMsg();
+          logger.error("Failed to send message: {}", err);
+          throw new RuntimeException("Failed to send message: " + err);
         }
+      } else {
+        logger.error("Unexpected response type while sending message: {}", response);
+        throw new RuntimeException("Invalid response type");
       }
     } catch (Exception e) {
       logger.error("Exception while sending message to topic: {}, partition: {}", topic, partitionId, e);
@@ -80,13 +84,18 @@ public class PartitionClient {
       Object response = rpcClient.invokeSync(endpoint, request, 3000);
       if (response instanceof MessageBatchReadResponse) {
         MessageBatchReadResponse batchResponse = (MessageBatchReadResponse) response;
-        logger.debug("Successfully read {} messages for client: {} from topic: {}, partition: {}",
-                batchResponse.getMessages().size(), clientId, topic, partitionId);
-        return batchResponse;
+        if (batchResponse.isSuccess()) {
+          logger.debug("Successfully read {} messages for client: {} from topic: {}, partition: {}",
+                  batchResponse.getMessages().size(), clientId, topic, partitionId);
+          return batchResponse;
+        } else {
+          String err = batchResponse.getErrorMsg();
+          logger.error("Failed to read messages: {}", err);
+          throw new RuntimeException("Failed to read message: " + err);
+        }
       } else {
-        String errorMsg = response instanceof String ? response.toString() : "Unknown error";
-        logger.error("Failed to read messages: {}", errorMsg);
-        throw new RuntimeException("Failed to read message: " + errorMsg);
+        logger.error("Unexpected response type while reading messages: {}", response);
+        throw new RuntimeException("Invalid response type");
       }
     } catch (Exception e) {
       logger.error("Exception while reading messages for client: {} from topic: {}, partition: {}",
@@ -109,19 +118,19 @@ public class PartitionClient {
 
     try {
       Object response = rpcClient.invokeSync(endpoint, request, 3000);
-      if (response instanceof String) {
-        logger.error("Failed to commit offset: {}", response);
-        throw new RuntimeException("Failed to commit offset: " + response);
-      }
       if (response instanceof ConsumerOffsetUpdateResponse) {
         ConsumerOffsetUpdateResponse offsetResponse = (ConsumerOffsetUpdateResponse) response;
         if (!offsetResponse.isSuccess()) {
-          logger.error("Failed to commit offset: {}", offsetResponse.getErrorMsg());
-          throw new RuntimeException("Failed to commit offset: " + offsetResponse.getErrorMsg());
+          String err = offsetResponse.getErrorMsg();
+          logger.error("Failed to commit offset: {}", err);
+          throw new RuntimeException("Failed to commit offset: " + err);
         } else {
           logger.info("Successfully committed offset {} for client: {} on topic: {}, partition: {}",
                   offset, clientId, topic, partitionId);
         }
+      } else {
+        logger.error("Unexpected response type while committing offset: {}", response);
+        throw new RuntimeException("Invalid response type");
       }
     } catch (Exception e) {
       logger.error("Exception while committing offset for client: {} on topic: {}, partition: {}",

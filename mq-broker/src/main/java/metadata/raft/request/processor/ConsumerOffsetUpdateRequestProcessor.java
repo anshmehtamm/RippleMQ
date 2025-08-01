@@ -16,6 +16,7 @@ import metadata.raft.request.PartitionClosure;
 import request.partition.ConsumerOffsetUpdateRequest;
 import request.partition.ConsumerOffsetUpdateResponse;
 import request.partition.MessageAppendRequest;
+import request.ErrorCode;
 
 public class ConsumerOffsetUpdateRequestProcessor implements RpcProcessor<ConsumerOffsetUpdateRequest> {
 
@@ -29,8 +30,12 @@ public class ConsumerOffsetUpdateRequestProcessor implements RpcProcessor<Consum
   public void handleRequest(RpcContext rpcCtx, ConsumerOffsetUpdateRequest request) {
     PartitionRaftServer partitionRaftServer = partitionManager.getPartitionRaftServer(request.getGroupId());
     if (!partitionRaftServer.getNode().isLeader()) {
-      // throw error
-      rpcCtx.sendResponse("Not leader");
+      ConsumerOffsetUpdateResponse resp = new ConsumerOffsetUpdateResponse();
+      resp.setSuccess(false);
+      resp.setErrorCode(ErrorCode.NOT_LEADER.getCode());
+      resp.setErrorMsg(ErrorCode.NOT_LEADER.getDefaultMessage());
+      rpcCtx.sendResponse(resp);
+      return;
     }
     handleConsumerOffsetUpdateRequest(rpcCtx, request, partitionRaftServer);
   }
@@ -41,8 +46,10 @@ public class ConsumerOffsetUpdateRequestProcessor implements RpcProcessor<Consum
       ConsumerOffsetUpdateResponse response = new ConsumerOffsetUpdateResponse();
       if (status.isOk()) {
         response.setSuccess(true);
+        response.setErrorCode(ErrorCode.SUCCESS.getCode());
       } else {
         response.setSuccess(false);
+        response.setErrorCode(ErrorCode.INTERNAL_ERROR.getCode());
         response.setErrorMsg(status.getErrorMsg());
       }
       rpcCtx.sendResponse(response);
@@ -62,6 +69,7 @@ public class ConsumerOffsetUpdateRequestProcessor implements RpcProcessor<Consum
       e.printStackTrace();
       ConsumerOffsetUpdateResponse response = new ConsumerOffsetUpdateResponse();
       response.setSuccess(false);
+      response.setErrorCode(ErrorCode.INTERNAL_ERROR.getCode());
       response.setErrorMsg("Serialization failed: " + e.getMessage());
       rpcCtx.sendResponse(response);
     }

@@ -14,6 +14,7 @@ public class TopicsResponse implements Serializable {
 
   private boolean success;
   private List<Topic> topics; // Used for read operations
+  private int errorCode;
   private String errorMsg;
 
   // Getters and Setters
@@ -42,8 +43,17 @@ public class TopicsResponse implements Serializable {
     this.errorMsg = errorMsg;
   }
 
+  public int getErrorCode() {
+    return errorCode;
+  }
+
+  public void setErrorCode(int errorCode) {
+    this.errorCode = errorCode;
+  }
+
   @Override
   public String toString() {
-    return "TopicsResponse{success=" + success + ", topics=" + topics + ", errorMsg='" + errorMsg + "'}";
+    return "TopicsResponse{success=" + success + ", topics=" + topics +
+            ", errorCode=" + errorCode + ", errorMsg='" + errorMsg + "'}";
   }
 }
