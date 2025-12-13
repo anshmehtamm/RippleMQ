@@ -13,11 +13,11 @@ public class ApplicationMain {
     setSystemProperties();
 
     if (args.length < 1) {
-      logger.error("Missing required argument: brokerId");
+      logger.error("Missing required argument: brokerId. Provide the broker ID as the first argument.");
       System.exit(1);
     }
 
-    String brokerId = args[1];
+    String brokerId = args[0];
     logger.info("Starting broker with ID: {}", brokerId);
 
     // Load cluster configuration
